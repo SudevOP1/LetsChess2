@@ -7,21 +7,37 @@ const AuthContextProvider = ({ children }) => {
   const backendUrl = "http://127.0.0.1:8000";
   const loginUrl = `${backendUrl}/auth/login/`;
   const refreshUrl = `${backendUrl}/auth/refresh/`;
+  const registerUrl = `${backendUrl}/auth/register/`;
 
-  const [accessToken, setAccessToken] = useState(
-    localStorage.getItem("accessToken")
-  );
-  const [refreshToken, setRefreshToken] = useState(
-    localStorage.getItem("refreshToken")
-  );
+  const [accessToken, setAccessToken] = useState(localStorage.getItem("accessToken"));
+  const [refreshToken, setRefreshToken] = useState(localStorage.getItem("refreshToken"));
+  const [loggedIn, setLoggedIn] = useState(!!accessToken);
 
-  const loggedIn = !!accessToken;
+  const registerUser = async (email, username, password) => {
+    const res = await fetch(registerUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email,
+        username: username,
+        password: password,
+      }),
+    });
+
+    let data = await res.json();
+
+    if (data.success) {
+      return [true, null];
+    } else {
+      return [false, data.error];
+    }
+  };
 
   const loginUser = async (username, password) => {
     const res = await fetch(loginUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: username, password: password }),
     });
 
     if (res.ok) {
@@ -30,8 +46,11 @@ const AuthContextProvider = ({ children }) => {
       setRefreshToken(data.refresh);
       localStorage.setItem("accessToken", data.access);
       localStorage.setItem("refreshToken", data.refresh);
+      setLoggedIn(true);
       return true;
     }
+
+    console.log(res);
     return false;
   };
 
@@ -40,6 +59,7 @@ const AuthContextProvider = ({ children }) => {
     setRefreshToken(null);
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    setLoggedIn(false);
   };
 
   useEffect(() => {
@@ -64,7 +84,7 @@ const AuthContextProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ loggedIn, loginUser, logoutUser, accessToken }}
+      value={{ loggedIn, registerUser, loginUser, logoutUser, accessToken }}
     >
       {children}
     </AuthContext.Provider>

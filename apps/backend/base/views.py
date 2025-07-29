@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
 
 from utils.helpers import *
 from .models import ChessGame
@@ -9,6 +10,7 @@ waiting_player = None
 
 def hello(request):
     return SuccessfulResponse({"msg": "hello"})
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

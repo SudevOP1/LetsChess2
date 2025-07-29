@@ -6,8 +6,7 @@ import NotificationPopup from "./components/NotificationComponent.jsx";
 import PublicRoute from "./PublicRoute.jsx"
 import PrivateRoute from "./PrivateRoute.jsx"
 import LandingPage from "../src/pages/LandingPage.jsx";
-import LoginPage from "../src/pages/LoginPage.jsx";
-import RegisterPage from "../src/pages/RegisterPage.jsx";
+import HomePage from "../src/pages/HomePage.jsx";
 
 function App() {
   return (
@@ -17,10 +16,8 @@ function App() {
       {/* routes */}
       <BrowserRouter>
         <Routes>
-          <Route path="/"         element={<PublicRoute><LandingPage />     </PublicRoute>} />
-          <Route path="/login"    element={<PublicRoute><LoginPage />       </PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><RegisterPage />    </PublicRoute>} />
-          <Route path="/home"     element={<PrivateRoute><h1>Logged In</h1> </PrivateRoute>} />
+          <Route path="/"         element={<PublicRoute><LandingPage /></PublicRoute>} />
+          <Route path="/home"     element={<PrivateRoute><HomePage /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
       
