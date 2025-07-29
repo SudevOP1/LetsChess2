@@ -7,9 +7,9 @@ def UnsuccessfulResponse(error):
         "error": error,
     })
 
-def SuccessfulResponse(**args):
+def SuccessfulResponse(response: dict):
     return JsonResponse({
-        **args,
+        **response,
         "success": True,
     })
 

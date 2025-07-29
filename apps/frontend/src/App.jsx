@@ -1,24 +1,30 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import NotificationContextProvider from "./context/NotificationContext.jsx";
+import MyContextProvider from "./context/MyContext.jsx";
 import NotificationPopup from "./components/NotificationComponent.jsx";
 
-import LandingPage from '../src/pages/LandingPage.jsx'
-import LoginPage from '../src/pages/LoginPage.jsx'
-import RegisterPage from '../src/pages/RegisterPage.jsx'
+import PublicRoute from "./PublicRoute.jsx"
+import PrivateRoute from "./PrivateRoute.jsx"
+import LandingPage from "../src/pages/LandingPage.jsx";
+import LoginPage from "../src/pages/LoginPage.jsx";
+import RegisterPage from "../src/pages/RegisterPage.jsx";
 
 function App() {
   return (
-    <NotificationContextProvider>
+    <MyContextProvider>
       <NotificationPopup />
+
+      {/* routes */}
       <BrowserRouter>
         <Routes>
-          <Route path="/"           element={<LandingPage />} />
-          <Route path="/login"      element={<LoginPage />} />
-          <Route path="/register"   element={<RegisterPage />} />
+          <Route path="/"         element={<PublicRoute><LandingPage />     </PublicRoute>} />
+          <Route path="/login"    element={<PublicRoute><LoginPage />       </PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage />    </PublicRoute>} />
+          <Route path="/home"     element={<PrivateRoute><h1>Logged In</h1> </PrivateRoute>} />
         </Routes>
       </BrowserRouter>
-    </NotificationContextProvider>
+      
+    </MyContextProvider>
   );
 }
 

@@ -4,9 +4,6 @@ backend/__pycache__
 base/migrations
 base/__pycache__
 
-users/migrations
-users/__pycache__
-
 utils/__pycache__
 
 

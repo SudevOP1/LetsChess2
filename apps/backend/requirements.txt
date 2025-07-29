@@ -1,4 +1,6 @@
 django
 channels
 daphne
+django-cors-headers
+djangorestframework-simplejwt
 

@@ -10,7 +10,7 @@ let NotificationContextProvider = ({ children }) => {
     setNotifications((prev) => prev.filter((e) => e.id !== id));
   };
 
-  let addNotification = (msg, type="error", time=5000) => {
+  let addNotification = (msg, type = "error", time = 5000) => {
     let id = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     setNotifications((prev) => [...prev, { id: id, msg: msg, type: type }]);
     setTimeout(() => {
@@ -19,7 +19,9 @@ let NotificationContextProvider = ({ children }) => {
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, addNotification, removeNotification }}>
+    <NotificationContext.Provider
+      value={{ notifications, addNotification, removeNotification }}
+    >
       {children}
     </NotificationContext.Provider>
   );

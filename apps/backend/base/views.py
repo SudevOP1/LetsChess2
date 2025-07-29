@@ -1,6 +1,6 @@
-from django.http import JsonResponse
 from django.utils import timezone
-from django.contrib.auth.decorators import login_required
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from utils.helpers import *
 from .models import ChessGame
@@ -10,8 +10,8 @@ waiting_player = None
 def hello(request):
     return SuccessfulResponse({"msg": "hello"})
 
-@login_required
-@allow_methods(["GET"])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def find_game(request):
     global waiting_player
     current_user = request.user

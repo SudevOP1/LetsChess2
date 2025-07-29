@@ -1,13 +1,20 @@
-import { useContext, useState } from "react";
-import { useNotificationContext } from "../context/NotificationContext";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMyContext } from "../context/MyContext.jsx";
 
 const LoginPage = () => {
   let [username, setUsername] = useState("");
   let [password, setPassword] = useState("");
+  let { loginUrl, addNotification, loginUser } = useMyContext();
+  let navigate = useNavigate();
 
-  let {addNotification} = useNotificationContext();
-
-  let handleLogin = () => {
+  let handleLogin = async () => {
+    const success = await loginUser(username, password);
+    if (success) {
+      navigate("/home");
+    } else {
+      addNotification("Invalid credentials", "error");
+    }
   };
 
   return (
@@ -35,7 +42,12 @@ const LoginPage = () => {
           className="border-1 border-black mb-5 flex-1"
         />
       </div>
-      <button onClick={handleLogin} className="border-1 border-black cursor-pointer">Submit</button>
+      <button
+        onClick={handleLogin}
+        className="border-1 border-black cursor-pointer"
+      >
+        Submit
+      </button>
     </div>
   );
 };
