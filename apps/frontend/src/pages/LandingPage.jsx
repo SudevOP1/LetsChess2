@@ -8,8 +8,8 @@ const LandingPage = () => {
         Login
       </a>
       <br />
-      <a className="text-4xl text-blue-600 underline" href="/signup">
-        Signup
+      <a className="text-4xl text-blue-600 underline" href="/register">
+        Register
       </a>
     </div>
   );
