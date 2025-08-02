@@ -7,6 +7,7 @@ import PublicRoute from "./PublicRoute.jsx"
 import PrivateRoute from "./PrivateRoute.jsx"
 import LandingPage from "../src/pages/LandingPage.jsx";
 import HomePage from "../src/pages/HomePage.jsx";
+import ChessGame from "../src/pages/ChessGame.jsx";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Routes>
           <Route path="/"         element={<PublicRoute><LandingPage /></PublicRoute>} />
           <Route path="/home"     element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/game"     element={<PrivateRoute><ChessGame /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
       
