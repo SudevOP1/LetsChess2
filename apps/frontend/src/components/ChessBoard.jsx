@@ -28,10 +28,9 @@ const ChessBoard = ({ classNames, context }) => {
   };
 
   let holdThisPiece = (e, rankIndex, fileIndex) => {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.dropEffect = "move";
     let piece = board[rankIndex][fileIndex];
     if (piece === " ") return;
+    // e.preventDefault();
 
     let fromSq = getSquareNotation(rankIndex, fileIndex);
     let availableSquares = availableMoves.filter(
@@ -54,7 +53,8 @@ const ChessBoard = ({ classNames, context }) => {
     setHighlightedSquares(newHighlightesSquares);
   };
 
-  let dropThisPiece = (toRankIndex, toFileIndex) => {
+  let dropThisPiece = (e, toRankIndex, toFileIndex) => {
+    // e.preventDefault();
     let newBoard = board.map((row) => [...row]);
     let toSq = getSquareNotation(toRankIndex, toFileIndex);
     let {
@@ -96,7 +96,7 @@ const ChessBoard = ({ classNames, context }) => {
             <div
               key={fileIndex}
               onDragOver={allowDrop}
-              onDrop={() => dropThisPiece(rankIndex, fileIndex)}
+              onDrop={(e) => dropThisPiece(e, rankIndex, fileIndex)}
               className={`flex items-center justify-center flex-1 aspect-square relative ${
                 (rankIndex + fileIndex) % 2 === 0
                   ? theme.board.light

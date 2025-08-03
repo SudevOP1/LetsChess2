@@ -17,7 +17,7 @@ const ChessGame = () => {
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
 
-  let player1Name = "sudevOP";
+  let player1Name = profileData.username || "You";
   let player2Name = "Hikaru";
   let [board, setBoard] = useState(getInitialBoard());
   let [moves, setMoves] = useState([

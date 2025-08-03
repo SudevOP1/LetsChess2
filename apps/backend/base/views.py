@@ -23,8 +23,7 @@ def find_game(request):
         if (waiting_player is None) or (waiting_player == current_user.id):
             waiting_player = current_user.id
             return SuccessfulResponse({
-                "status": "waiting",
-                "msg": "waiting for opponent...",
+                "status": "waiting",                "msg": "waiting for opponent...",
             })
         
         # else match found

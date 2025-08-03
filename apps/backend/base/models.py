@@ -14,7 +14,7 @@ class ChessGame(models.Model):
         (2, "Player 2"),
         (3, "Draw"),
     ], null=False, default=0)  # 0=incomplete, 1=player1, 2=player2, 3=draw
-    moves = models.TextField() # notations (eg: "e4 e5 Nf3 Nc6 ...")
+    moves = models.TextField(blank=True) # notations (eg: "e4 e5 Nf3 Nc6 ...")
 
     def __str__(self):
         return f"Game {self.id} - {self.winner} - {self.player1} vs {self.player2}"
