@@ -12,12 +12,12 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
         try:
             # get game_id, user and access_token
             await self.accept()
-            game_id  = self.scope["url_route"]["kwargs"]["game_id"]
+            game_id       = self.scope["url_route"]["kwargs"]["game_id"]
             query_params  = parse_qs(self.scope["query_string"].decode())
             access_token  = query_params.get("access_token", [None])[0]
             user_ok, user = await get_user_from_access_token(access_token)
 
-            # invalid access token
+            # validate access token
             if not user_ok:
                 await self.send(text_data=json.dumps({
                     "error": user,
@@ -25,10 +25,10 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
             
-            # invalid game_id
+            # validate game_id
             try:
                 game_uuid = uuid.UUID(game_id)
-                game_obj = await sync_to_async(ChessGame.objects.get)(id=game_uuid)
+                self.game_obj = await sync_to_async(ChessGame.objects.get)(id=game_uuid)
             except ValueError:
                 await self.send(text_data=json.dumps({
                     "error": f"invalid game_id format: {game_id}",
@@ -42,8 +42,8 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
             
-            # user not participant of game
-            is_participant = await check_user_participation(user, game_obj)
+            # check whether user is a participant
+            is_participant = await check_user_participation(user, self.game_obj)
             if not is_participant:
                 await self.send(text_data=json.dumps({
                     "error": f"not a game participant",
@@ -52,13 +52,15 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
                 return
 
             # user authentication successful, join room
+            self.user = user
+            self.color = "w" if (self.game_obj.player1 == self.user) else "b"
             self.room_group_name = f"game_{game_id}"
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
             # send all game data
             await self.send(text_data=json.dumps({
                 "type": "game_data",
-                "game_data": await get_game_data(game_obj)
+                "game_data": await get_game_data(self.game_obj)
             }))
 
         except Exception as e:
@@ -66,23 +68,47 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
                 "error": f"something went wrong: {str(e)}",
             }))
             await self.close()
-            return
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        move = data["move"]
+        try:
+            # validate json format
+            try:
+                data = json.loads(text_data)
+                move = data.get(move)
+                if move is None:
+                    await self.send(text_data=json.dumps({
+                        "error": f"missing \"move\" field"
+                    }))
+                    return
+            except Exception as e:
+                await self.send(text_data=json.dumps({
+                    "error": f"invalid json format"
+                }))
+                return
 
-        # validate move
-        print_debug(f"{move} move validated")
+            # check whether game exists and is active
+            if self.game_obj.winner != 0:
+                await self.send(text_data=json.dumps({
+                    "error": f"game is over"
+                }))
+                await self.disconnect()
 
-        # broadcast the move to both players
-        await self.channel_layer.group_send(self.room_group_name, {
-            "type": "broadcast_move",
-            "move": move,
-        })
-        
-        # save the move to db
-        await self.save_move(move)
+            # turn validation
+            self.board
+
+            # TODO: resign, draw offer
+
+            # move legality
+
+            # check gameover condition
+
+            # save move to db
+
+            # broadcast move
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                "error": f"something went wrong: {str(e)}"
+            }))
 
     async def broadcast_move(self, event):
         move = event["move"]
