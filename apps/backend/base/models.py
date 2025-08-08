@@ -12,5 +12,5 @@ class ChessGame(models.Model):
     moves       = models.TextField(blank=True) # notations (eg: "e4 e5 Nf3 Nc6 ...")
 
     def __str__(self):
-        return f"Game {self.id} - {self.winner} - {self.player1} vs {self.player2}"
+        return f"Game {self.id} - {self.player1} vs {self.player2}"
 

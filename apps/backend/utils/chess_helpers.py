@@ -5,10 +5,9 @@ import chess
 def get_board_from_moves(moves):
     try:
         board = chess.Board()
-        moves = moves.split(" ")
+        moves = [m for m in moves.split(" ") if m.strip()]
         for move in moves:
             board.push_san(move)
-
         return True, board
     except Exception as e:
         return False, str(e)

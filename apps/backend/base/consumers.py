@@ -71,44 +71,100 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         try:
+            # TODO: resign, draw offer, time
+
             # validate json format
             try:
                 data = json.loads(text_data)
-                move = data.get(move)
-                if move is None:
+                move_uci = data.get("move")
+                if move_uci is None:
                     await self.send(text_data=json.dumps({
                         "error": f"missing \"move\" field"
                     }))
                     return
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 await self.send(text_data=json.dumps({
                     "error": f"invalid json format"
                 }))
                 return
 
+            # get board
+            await sync_to_async(self.game_obj.refresh_from_db)()
+            board_ok, board = get_board_from_moves(self.game_obj.moves)
+            if not board_ok:
+                await self.send(text_data=json.dumps({
+                    "error": f"invalid board state encountered: {board}"
+                }))
+                return
+
             # check whether game exists and is active
-            if self.game_obj.winner != 0:
+            game_outcome = board.outcome()
+            if game_outcome:
                 await self.send(text_data=json.dumps({
                     "error": f"game is over"
                 }))
                 await self.disconnect()
+                return
 
             # turn validation
-            self.board
-
-            # TODO: resign, draw offer
+            color_to_move = "w" if board.turn == chess.WHITE else "b"
+            if color_to_move != self.color:
+                await self.send(text_data=json.dumps({
+                    "error": f"not your move"
+                }))
+                return
 
             # move legality
+            move_obj = chess.Move.from_uci(move_uci)
+            if move_obj not in board.legal_moves:
+                await self.send(text_data=json.dumps({
+                    "error": f"not a legal move"
+                }))
+                return
 
-            # check gameover condition
+            # make move and save to db
+            move_san = board.san(move_obj)
+            board.push(move_obj)
+            self.game_obj.moves += f"{' ' if len(self.game_obj.moves) > 0 else ''}{move_san}"
+            await sync_to_async(self.game_obj.save)()
 
-            # save move to db
+            # if gameover, broadcast move and gameover
+            outcome = board.outcome()
+            if outcome:
+                await self.channel_layer.group_send(
+                    self.room_group_name, {
+                        "type": "broadcast_move_and_gameover",
+                        "move_and_gameover": {
+                            "move": move_uci,
+                            "gameover": outcome.result(),
+                        }
+                    }
+                )
+                return
+            
+            # broadcast move, turn, available_moves
+            await self.channel_layer.group_send(
+                self.room_group_name, {
+                    "type": "broadcast_move",
+                    "move": {
+                        "move": move_uci,
+                        "turn": "w" if board.turn == chess.WHITE else "b",
+                        "available_moves": [m.uci() for m in board.legal_moves],
+                    },
+                }
 
-            # broadcast move
+            )
         except Exception as e:
             await self.send(text_data=json.dumps({
                 "error": f"something went wrong: {str(e)}"
             }))
+
+    async def broadcast_move_and_gameover(self, event):
+        move_and_gameover = event["move_and_gameover"]
+        await self.send(text_data=json.dumps({
+            "type": "move_and_gameover",
+            "move_and_gameover": move_and_gameover,
+        }))
 
     async def broadcast_move(self, event):
         move = event["move"]
@@ -116,10 +172,6 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
             "type": "move",
             "move": move,
         }))
-
-    @sync_to_async
-    def save_move(self, move):
-        print_debug(f"{move} move saved to db")
 
     async def disconnect(self, close_code):
         if self.room_group_name:
