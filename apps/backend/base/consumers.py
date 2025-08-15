@@ -142,14 +142,14 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
                 )
                 return
             
-            # broadcast move, turn, available_moves
+            # broadcast move, turn, legal_moves
             await self.channel_layer.group_send(
                 self.room_group_name, {
                     "type": "broadcast_move",
                     "move": {
                         "move": move_uci,
                         "turn": "w" if board.turn == chess.WHITE else "b",
-                        "available_moves": [m.uci() for m in board.legal_moves],
+                        "legal_moves": [m.uci() for m in board.legal_moves],
                     },
                 }
 
@@ -176,3 +176,7 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if self.room_group_name:
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+class MatchMaking(AsyncWebsocketConsumer):
+    async def connect(self):
+        pass

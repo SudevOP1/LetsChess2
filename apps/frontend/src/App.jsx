@@ -8,6 +8,7 @@ import PrivateRoute from "./PrivateRoute.jsx"
 import LandingPage from "../src/pages/LandingPage.jsx";
 import HomePage from "../src/pages/HomePage.jsx";
 import ChessGame from "../src/pages/ChessGame.jsx";
+import ErrorPage from "../src/pages/ErrorPage.jsx";
 
 function App() {
   return (
@@ -17,9 +18,10 @@ function App() {
       {/* routes */}
       <BrowserRouter>
         <Routes>
-          <Route path="/"         element={<PublicRoute><LandingPage /></PublicRoute>} />
-          <Route path="/home"     element={<PrivateRoute><HomePage /></PrivateRoute>} />
-          <Route path="/game"     element={<PrivateRoute><ChessGame /></PrivateRoute>} />
+          <Route path="*"             element={<ErrorPage />} />
+          <Route path="/"             element={<PublicRoute><LandingPage /></PublicRoute>} />
+          <Route path="/home"         element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/game/:gameId" element={<PrivateRoute><ChessGame /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
       

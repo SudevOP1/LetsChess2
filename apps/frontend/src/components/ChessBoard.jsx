@@ -3,7 +3,7 @@ import { useMyContext } from "../context/MyContext";
 
 const ChessBoard = ({ classNames, context }) => {
   let { theme } = useMyContext();
-  let { board, setBoard, availableMoves } = context;
+  let { board, setBoard, availableMoves, makeMoveAndGetBoard } = context;
   let move_sound = new Audio(theme.sound.move);
   let capture_sound = new Audio(theme.sound.capture);
 
@@ -55,7 +55,6 @@ const ChessBoard = ({ classNames, context }) => {
 
   let dropThisPiece = (e, toRankIndex, toFileIndex) => {
     // e.preventDefault();
-    let newBoard = board.map((row) => [...row]);
     let toSq = getSquareNotation(toRankIndex, toFileIndex);
     let {
       piece: piece,
@@ -67,8 +66,13 @@ const ChessBoard = ({ classNames, context }) => {
 
     if (toSqNotations.includes(toSq)) {
       // update board
-      newBoard[rankIndex][fileIndex] = " ";
-      newBoard[toRankIndex][toFileIndex] = piece;
+      let newBoard = makeMoveAndGetBoard(
+        board,
+        rankIndex,
+        fileIndex,
+        toRankIndex,
+        toFileIndex
+      );
       setBoard(newBoard);
       setHighlightedSquares(getEmptyArray(false));
       setHeldPiece(null);

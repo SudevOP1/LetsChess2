@@ -22,7 +22,7 @@ def get_game_data(game_obj):
         "white"         : game_obj.player1.username,
         "black"         : game_obj.player2.username,
         "start_time"    : game_obj.start_time.isoformat() if game_obj.start_time else None,
-        "san_moves"     : game_obj.moves,
+        "san_moves"     : game_obj.moves.split(" "),
 
         "uci_moves"     : [m.uci() for m in board.move_stack],
         "status"        : board.outcome().result() if board.outcome() else "ongoing",

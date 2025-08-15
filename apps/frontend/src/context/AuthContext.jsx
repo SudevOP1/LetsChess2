@@ -4,14 +4,19 @@ export const AuthContext = createContext();
 export const useAuthContext = () => useContext(AuthContext);
 
 const AuthContextProvider = ({ children }) => {
-  const backendUrl  = "http://127.0.0.1:8000";
-  const loginUrl    = backendUrl + "/auth/login/";
-  const refreshUrl  = backendUrl + "/auth/refresh/";
-  const registerUrl = backendUrl + "/auth/register/";
-  const profileUrl  = backendUrl + "/auth/profile/";
+  const backendApiUrl = "http://127.0.0.1:8000";
+  const backendWsUrl = "ws://127.0.0.1:8000";
+  const loginUrl = backendApiUrl + "/auth/login/";
+  const refreshUrl = backendApiUrl + "/auth/refresh/";
+  const registerUrl = backendApiUrl + "/auth/register/";
+  const profileUrl = backendApiUrl + "/auth/profile/";
 
-  const [accessToken, setAccessToken] = useState(localStorage.getItem("accessToken"));
-  const [refreshToken, setRefreshToken] = useState(localStorage.getItem("refreshToken"));
+  const [accessToken, setAccessToken] = useState(
+    localStorage.getItem("accessToken")
+  );
+  const [refreshToken, setRefreshToken] = useState(
+    localStorage.getItem("refreshToken")
+  );
   const [loggedIn, setLoggedIn] = useState(!!accessToken);
   const [profileData, setProfileData] = useState(
     JSON.parse(localStorage.getItem("profileData") || "{}")
@@ -102,7 +107,16 @@ const AuthContextProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ loggedIn, profileData, registerUser, loginUser, logoutUser, accessToken }}
+      value={{
+        backendApiUrl,
+        backendWsUrl,
+        loggedIn,
+        profileData,
+        registerUser,
+        loginUser,
+        logoutUser,
+        accessToken,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 import AuthContextProvider, { useAuthContext } from "./AuthContext";
-import NotificationContextProvider, { useNotificationContext } from "./NotificationContext";
+import NotificationContextProvider, {
+  useNotificationContext,
+} from "./NotificationContext";
 import ThemeContextProvider, { useThemeContext } from "./ThemeContext";
 
 export const MyContext = createContext();
@@ -12,7 +14,13 @@ const MyContextInner = ({ children }) => {
   const theme = useThemeContext();
 
   return (
-    <MyContext.Provider value={{ ...auth, ...notification, ...theme }}>
+    <MyContext.Provider
+      value={{
+        ...auth,
+        ...notification,
+        ...theme,
+      }}
+    >
       {children}
     </MyContext.Provider>
   );
@@ -23,9 +31,7 @@ const MyContextProvider = ({ children }) => {
     <AuthContextProvider>
       <NotificationContextProvider>
         <ThemeContextProvider>
-          <MyContextInner>
-            {children}
-          </MyContextInner>
+          <MyContextInner>{children}</MyContextInner>
         </ThemeContextProvider>
       </NotificationContextProvider>
     </AuthContextProvider>
