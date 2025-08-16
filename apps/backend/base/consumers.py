@@ -57,7 +57,13 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
             self.room_group_name = f"game_{game_id}"
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-            # send all game data
+            # send game metadata (data that doesnt change after every move, eg: id, start_time)
+            await self.send(text_data=json.dumps({
+                "type": "game_metadata",
+                "game_metadata": await get_game_metadata(self.game_obj)
+            }))
+
+            # send game data (data that changes after every move, eg: turn, fen)
             await self.send(text_data=json.dumps({
                 "type": "game_data",
                 "game_data": await get_game_data(self.game_obj)
@@ -71,7 +77,7 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         try:
-            # TODO: resign, draw offer, time
+            # TODO: resign, draw by agreement, time
 
             # validate json format
             try:
@@ -128,49 +134,24 @@ class LiveGameConsumer(AsyncWebsocketConsumer):
             self.game_obj.moves += f"{' ' if len(self.game_obj.moves) > 0 else ''}{move_san}"
             await sync_to_async(self.game_obj.save)()
 
-            # if gameover, broadcast move and gameover
-            outcome = board.outcome()
-            if outcome:
-                await self.channel_layer.group_send(
-                    self.room_group_name, {
-                        "type": "broadcast_move_and_gameover",
-                        "move_and_gameover": {
-                            "move": move_uci,
-                            "gameover": outcome.result(),
-                        }
-                    }
-                )
-                return
-            
-            # broadcast move, turn, legal_moves
+            # broadcast game_data
             await self.channel_layer.group_send(
                 self.room_group_name, {
-                    "type": "broadcast_move",
-                    "move": {
-                        "move": move_uci,
-                        "turn": "w" if board.turn == chess.WHITE else "b",
-                        "legal_moves": [m.uci() for m in board.legal_moves],
-                    },
+                    "type": "broadcast_game_data",
+                    "game_data": await get_game_data(self.game_obj),
                 }
-
             )
+            
         except Exception as e:
             await self.send(text_data=json.dumps({
                 "error": f"something went wrong: {str(e)}"
             }))
 
-    async def broadcast_move_and_gameover(self, event):
-        move_and_gameover = event["move_and_gameover"]
+    async def broadcast_game_data(self, event):
+        game_data = event["game_data"]
         await self.send(text_data=json.dumps({
-            "type": "move_and_gameover",
-            "move_and_gameover": move_and_gameover,
-        }))
-
-    async def broadcast_move(self, event):
-        move = event["move"]
-        await self.send(text_data=json.dumps({
-            "type": "move",
-            "move": move,
+            "type": "game_data",
+            "game_data": game_data,
         }))
 
     async def disconnect(self, close_code):

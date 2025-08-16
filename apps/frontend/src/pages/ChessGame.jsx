@@ -19,140 +19,99 @@ const ChessGame = () => {
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
 
-  let tempMoves = [
-    ["Naxb8=N#", "Naxb8=N#"],
-    ["d4", "d5"],
-    ["Bf4", "Nf6"],
-    ["e3", "g6"],
-    ["Nf3", "Bg7"],
-    ["Bd3", "O-O"],
-    ["O-O", "Bf5"],
-    ["c3", "Nbd7"],
-    ["Nh4", "Bg4"],
-    ["f3", "Bf5"],
-    ["Nxf5", "gxf5"],
-    ["Bxf5", "c6"],
-    ["Nd2", "b6"],
-    ["e4", "e6"],
-    ["Bg4", "dxe4"],
-    ["fxe4", "c5"],
-    ["Be2", "cxd4"],
-    ["cxd4", "Rb8"],
-    ["Bxb8", "Qxb8"],
-    ["Bd3", "h5"],
-    ["e5", "Ng4"],
-    ["h3", "Ne3"],
-    ["Qxh5", "Nf5"],
-    ["Rxf5", "exf5"],
-    ["Bxf5", "f6"],
-    ["Be6+", "Rf7"],
-    ["Qxf7+", "Kh7"],
-    ["Bf5+", "Kh6"],
-    ["Qg6#"],
-  ];
-  let tempLegalMoves = [
-    "g1h3",
-    "g1f3",
-    "b1c3",
-    "b1a3",
-    "h2h3",
-    "g2g3",
-    "f2f3",
-    "e2e3",
-    "d2d3",
-    "c2c3",
-    "b2b3",
-    "a2a3",
-    "h2h4",
-    "g2g4",
-    "f2f4",
-    "e2e4",
-    "d2d4",
-    "c2c4",
-    "b2b4",
-    "a2a4",
-  ];
-
   let debug = true;
-  let [loading, setLoading] = useState(true);
   let [board, setBoard] = useState(getInitialBoard());
 
   // ws stuff
   let wsRef = useRef(null);
+  let [gameMetadata, setGameMetadata] = useState(null);
   let [gameData, setGameData] = useState(null);
-  let [error, setError] = useState(null);
-  let [log, setLog] = useState([]);
+  let [logs, setLogs] = useState([]);
 
+  // ws connection
   useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
     let wsUrl = `${backendWsUrl}/game/${gameId}/?access_token=${accessToken}`;
     let ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      if (debug) console.log("connected to ws");
-      setLog((prev) => [...prev, "connected to ws"]);
+      addLog("ws connected", "", "yellow");
     };
     ws.onmessage = (event) => {
       try {
         let msg = JSON.parse(event.data);
-        if (debug) console.log(msg);
-
-        // error
         if (msg.error) {
-          setError(msg.error);
+          addLog(`recieved error: ${msg.error}`, "", "red");
           return;
         }
-
-        // game data
+        if (msg.type === "game_metadata") {
+          addLog("recieved game_metadata", msg.game_metadata, "white");
+          setGameMetadata(msg.game_metadata);
+          return;
+        }
         if (msg.type === "game_data") {
+          addLog("recieved game_data", msg.game_data, "white");
           setGameData(msg.game_data);
           setBoard(makeMovesAndGetBoard(msg.game_data.uci_moves));
           return;
         }
-
-        // broadcasted move
-        if (msg.type === "move") {
-          setLog((prev) => [...prev, `move: ${msg.move.move}`]);
-          setGameData((prev) => ({
-            ...prev,
-            turn: msg.move.turn,
-            legal_moves: msg.move.legal_moves,
-          }));
-        }
-
-        // broadcasted move and gameover
-        if (msg.type === "move_and_gameover") {
-          setLog((prev) => [
-            ...prev,
-            `move: ${msg.move_and_gameover.move}`,
-            `gameover: ${msg.move_and_gameover.gameover}`,
-          ]);
-          setGameData((prev) => ({
-            ...prev,
-            turn: msg.move.turn,
-            legal_moves: msg.moves.legal_moves,
-          }));
-        }
       } catch (e) {
-        console.error(`error parsing msg: ${e}`);
+        addLog(`error parsing msg: ${e}`, "", "red");
       }
     };
     ws.onerror = (error) => {
-      if (debug) console.error("ws error:", error);
-      setError("ws connection error");
+      addLog("ws connection error", error, "red");
     };
     ws.onclose = () => {
-      if (debug) console.log("disconnected from ws");
-      setLog((prev) => [...prev, "disconnected from ws"]);
+      addLog("disconnect from ws", "", "yellow");
     };
 
-    // cleanup on unmount
-    return () => ws.close();
+    // close ws properly
+    return () => {
+      if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING
+      ) {
+        ws.close();
+      }
+    };
   }, [gameId, accessToken]);
 
+  let addLog = (msg, data, color = "white") => {
+    let currentTime = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    let msgWithTime = `${currentTime}:${
+      data === "" ? "" : " (logged in console)"
+    } ${msg}`;
+
+    if (debug && data !== "") {
+      if (color === "red") {
+        console.error(`${currentTime}: ${msg}: `, data);
+      } else {
+        console.log(`${currentTime}: ${msg}: `, data);
+      }
+    }
+    setLogs((prev) => [...prev, { msg: msgWithTime, color: color }]);
+  };
   let sendMove = (uciMove) => {
+    if (gameData.gameover !== "ongoing") {
+      addLog("handled sending move, when game is over", "", "yellow");
+      return;
+    }
+    if (!uciMove) {
+      addLog("handled sending undefined move", "", "yellow");
+      return;
+    }
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ move: uciMove }));
+      addLog(`tried sending move: ${uciMove}`);
     }
   };
   let makeMoveAndGetBoard = (
@@ -205,84 +164,116 @@ const ChessGame = () => {
     return result;
   };
 
-  // return (
-  //   <div className="bg-gray-900 text-white min-h-screen p-20">
-  //     <h1 className="text-3xl text-yellow-400">GameData</h1>
-  //     {gameData &&
-  //       Object.entries(gameData).map(([key, value], index) => (
-  //         <div key={index}>
-  //           <span className="text-yellow-400">gameData.{key}: </span>
-  //           <span>{String(value)}</span>
-  //           <br />
-  //         </div>
-  //       ))}
-  //     <div className="w-full h-[1px] my-5 bg-red-500" />
-
-  //     <p className="text-3xl text-yellow-400">Error</p>
-  //     {error && <p className="text-red-500">{String(error)}</p>}
-  //     <div className="w-full h-[1px] my-5 bg-red-500" />
-
-  //     <span className="text-3xl text-yellow-400">Log:</span>
-  //     <button
-  //       className="border border-yellow-400 p-2"
-  //       onClick={() => sendMove(gameData.legal_moves[0])}
-  //     >
-  //       Send first legal move
-  //     </button>
-  //     <ul>
-  //       {log.reverse().map((entry, idx) => (
-  //         <li key={idx}>{entry}</li>
-  //       ))}
-  //     </ul>
-  //   </div>
-  // );
-
-  if (gameData) {
-    console.log(gameData);
+  if (!gameData) {
     return (
       <PageWithHeader classNames="flex flex-col gap-1">
-        <p className="text-lime-300 font-semibold text-2xl flex-none">
-          {gameData.black} (black)
-        </p>
-
-        <div className="flex flex-col lg:flex-row gap-15 flex-1">
-          <ChessBoard
-            context={{
-              board,
-              setBoard,
-              legal_moves: gameData.legal_moves,
-              makeMoveAndGetBoard,
-            }}
-            classNames="flex-2"
-          />
-
-          <p className="block lg:hidden text-lime-300 font-semibold text-2xl flex-none -mt-14">
-            {gameData.white} (white)
-          </p>
-
-          {/* moves card */}
-          <div className="flex flex-col bg-blue-400/20 text-lime-300 px-8 py-5 rounded-2xl flex-2">
-            <h1 className="color-lime-300 text-3xl font-semibold border-b-2 border-lime-300 pb-2 mb-2">
-              Moves
-            </h1>
-            <div className="flex flex-col overflow-y-auto max-h-[55vh]">
-              {getSanMovesToDisplay(gameData.san_moves).map((move, i) => (
-                <div className="flex flex-row gap-5" key={i}>
-                  <span className="w-[10%]">{i + 1}.</span>
-                  <span className="flex-1">{move[0]}</span>
-                  <span className="flex-1">{move[1] && move[1]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-lime-300 text-xl">Loading game...</p>
         </div>
-
-        <p className="hidden lg:block text-lime-300 font-semibold text-2xl flex-none">
-          {gameData.white} (white)
-        </p>
       </PageWithHeader>
     );
-  } else return <p>loading</p>;
+  }
+
+  return (
+    <>
+      {debug ? (
+        // debug menu
+        <div className="bg-gray-900 text-white min-h-screen w-full p-20">
+          {/* GameMetadata */}
+          <h1 className="text-3xl text-yellow-400">GameMetadata</h1>
+          {gameMetadata &&
+            Object.entries(gameMetadata).map(([key, value], index) => (
+              <div key={index}>
+                <span className="text-yellow-400">gameMetadata.{key}: </span>
+                <span>{String(value)}</span>
+                <br />
+              </div>
+            ))}
+          <div className="w-full h-[1px] my-5 bg-red-500" />
+
+          {/* GameData */}
+          <h1 className="text-3xl text-yellow-400">GameData</h1>
+          {gameData &&
+            Object.entries(gameData).map(([key, value], index) => (
+              <div key={index}>
+                <span className="text-yellow-400">gameData.{key}: </span>
+                <span>{String(value)}</span>
+                <br />
+              </div>
+            ))}
+          <div className="w-full h-[1px] my-5 bg-red-500" />
+
+          {/* Logs */}
+          <span className="text-3xl text-yellow-400">Logs:</span>
+          <button
+            className="border border-yellow-400 p-2 ml-2 cursor-pointer"
+            onClick={() => sendMove(gameData.legal_moves[0])}
+          >
+            Send first legal move
+          </button>
+          <ul className="flex flex-col-reverse">
+            {logs.map((log, idx) => (
+              <li
+                key={idx}
+                className={
+                  {
+                    white: "text-white",
+                    red: "text-red-500",
+                    yellow: "text-yellow-500",
+                  }[log.color]
+                }
+              >
+                {log.msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        // chess game
+        <PageWithHeader classNames="flex flex-col gap-1">
+          <p className="text-lime-300 font-semibold text-2xl flex-none">
+            {gameData.black} (black)
+          </p>
+
+          <div className="flex flex-col lg:flex-row gap-15 flex-1">
+            <ChessBoard
+              context={{
+                board,
+                setBoard,
+                legal_moves: gameData.legal_moves,
+                makeMoveAndGetBoard,
+              }}
+              classNames="flex-2"
+            />
+
+            <p className="block lg:hidden text-lime-300 font-semibold text-2xl flex-none -mt-14">
+              {gameData.white} (white)
+            </p>
+
+            {/* moves card */}
+            <div className="flex flex-col bg-blue-400/20 text-lime-300 px-8 py-5 rounded-2xl flex-2">
+              <h1 className="color-lime-300 text-3xl font-semibold border-b-2 border-lime-300 pb-2 mb-2">
+                Moves
+              </h1>
+              <div className="flex flex-col overflow-y-auto max-h-[55vh]">
+                {getSanMovesToDisplay(gameData.san_moves).map((move, i) => (
+                  <div className="flex flex-row gap-5" key={i}>
+                    <span className="w-[10%]">{i + 1}.</span>
+                    <span className="flex-1">{move[0]}</span>
+                    <span className="flex-1">{move[1] && move[1]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <p className="hidden lg:block text-lime-300 font-semibold text-2xl flex-none">
+            {gameData.white} (white)
+          </p>
+        </PageWithHeader>
+      )}
+    </>
+  );
 };
 
 export default ChessGame;
