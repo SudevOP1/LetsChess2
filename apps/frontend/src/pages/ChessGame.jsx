@@ -13,13 +13,13 @@ const ChessGame = () => {
     ["p", "p", "p", "p", "p", "p", "p", "p"],
     [" ", " ", " ", " ", " ", " ", " ", " "],
     [" ", " ", " ", " ", " ", " ", " ", " "],
-    [" ", " ", " ", "p", "p", " ", " ", " "],
+    [" ", " ", " ", " ", " ", " ", " ", " "],
     [" ", " ", " ", " ", " ", " ", " ", " "],
     ["P", "P", "P", "P", "P", "P", "P", "P"],
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
 
-  let debug = true;
+  let debug = false;
   let [board, setBoard] = useState(getInitialBoard());
 
   // ws stuff
@@ -100,7 +100,7 @@ const ChessGame = () => {
     }
     setLogs((prev) => [...prev, { msg: msgWithTime, color: color }]);
   };
-  let sendMove = (uciMove) => {
+  let trySendingUciMove = (uciMove) => {
     if (gameData.gameover !== "ongoing") {
       addLog("handled sending move, when game is over", "", "yellow");
       return;
@@ -152,16 +152,11 @@ const ChessGame = () => {
     }
     return newBoard;
   };
-  let getSanMovesToDisplay = (sanMoves) => {
-    let result = [];
-    for (let i = 0; i < sanMoves.length; i += 2) {
-      if (i + 1 < sanMoves.length) {
-        result.push([sanMoves[i], sanMoves[i + 1]]);
-      } else {
-        result.push(sanMoves[i]);
-      }
-    }
-    return result;
+  let isValidTurn = () => {
+    return (
+      gameData.turn ===
+      (gameMetadata.white === profileData.username ? "w" : "b")
+    );
   };
 
   if (!gameData) {
@@ -207,7 +202,7 @@ const ChessGame = () => {
           <span className="text-3xl text-yellow-400">Logs:</span>
           <button
             className="border border-yellow-400 p-2 ml-2 cursor-pointer"
-            onClick={() => sendMove(gameData.legal_moves[0])}
+            onClick={() => trySendingUciMove(gameData.legal_moves[0])}
           >
             Send first legal move
           </button>
@@ -237,12 +232,9 @@ const ChessGame = () => {
 
           <div className="flex flex-col lg:flex-row gap-15 flex-1">
             <ChessBoard
-              context={{
-                board,
-                setBoard,
-                legal_moves: gameData.legal_moves,
-                makeMoveAndGetBoard,
-              }}
+              board={board}
+              legalMoves={isValidTurn() ? gameData.legal_moves : []}
+              trySendingUciMove={trySendingUciMove}
               classNames="flex-2"
             />
 
@@ -256,13 +248,22 @@ const ChessGame = () => {
                 Moves
               </h1>
               <div className="flex flex-col overflow-y-auto max-h-[55vh]">
-                {getSanMovesToDisplay(gameData.san_moves).map((move, i) => (
-                  <div className="flex flex-row gap-5" key={i}>
-                    <span className="w-[10%]">{i + 1}.</span>
-                    <span className="flex-1">{move[0]}</span>
-                    <span className="flex-1">{move[1] && move[1]}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const sanMoves = [];
+                  for (let i = 0; i < gameData.san_moves.length; i += 2) {
+                    sanMoves.push([
+                      gameData.san_moves[i],
+                      gameData.san_moves[i + 1],
+                    ]);
+                  }
+                  return sanMoves.map(([white, black], idx) => (
+                    <div className="flex flex-row gap-5" key={idx}>
+                      <span className="w-[10%]">{idx + 1}.</span>
+                      <span className="flex-1">{white}</span>
+                      <span className="flex-1">{black || ""}</span>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>

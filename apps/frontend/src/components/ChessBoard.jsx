@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useMyContext } from "../context/MyContext";
 
-const ChessBoard = ({ classNames, context }) => {
+const ChessBoard = ({ classNames, board, legalMoves, trySendingUciMove }) => {
   let { theme } = useMyContext();
-  let { board, setBoard, availableMoves, makeMoveAndGetBoard } = context;
   let move_sound = new Audio(theme.sound.move);
   let capture_sound = new Audio(theme.sound.capture);
 
-  let getEmptyArray = (something = "") => {
-    return Array.from({ length: 8 }, () => Array(8).fill(something));
+  let getEmptyArray = (fillWith = "") => {
+    return Array.from({ length: 8 }, () => Array(8).fill(fillWith));
   };
 
   let [heldPiece, setHeldPiece] = useState(null);
@@ -33,14 +32,11 @@ const ChessBoard = ({ classNames, context }) => {
     // e.preventDefault();
 
     let fromSq = getSquareNotation(rankIndex, fileIndex);
-    let availableSquares = availableMoves.filter(
+    let availableSquares = legalMoves.filter(
       (move) => move.slice(0, 2) === fromSq
     );
 
     setHeldPiece({
-      piece: piece,
-      rankIndex: rankIndex,
-      fileIndex: fileIndex,
       fromSqNotation: fromSq,
       toSqNotations: availableSquares.map((sq) => sq.slice(2, 4)),
     });
@@ -56,24 +52,11 @@ const ChessBoard = ({ classNames, context }) => {
   let dropThisPiece = (e, toRankIndex, toFileIndex) => {
     // e.preventDefault();
     let toSq = getSquareNotation(toRankIndex, toFileIndex);
-    let {
-      piece: piece,
-      rankIndex: rankIndex,
-      fileIndex: fileIndex,
-      fromSqNotation: fromSqNotation,
-      toSqNotations: toSqNotations,
-    } = heldPiece;
+    let { fromSqNotation: fromSqNotation, toSqNotations: toSqNotations } =
+      heldPiece;
 
     if (toSqNotations.includes(toSq)) {
-      // update board
-      let newBoard = makeMoveAndGetBoard(
-        board,
-        rankIndex,
-        fileIndex,
-        toRankIndex,
-        toFileIndex
-      );
-      setBoard(newBoard);
+      trySendingUciMove(fromSqNotation + toSq);
       setHighlightedSquares(getEmptyArray(false));
       setHeldPiece(null);
 
