@@ -158,7 +158,19 @@ const ChessGame = () => {
     );
     let newBoard = currentBoard.map((row) => [...row]);
 
-    // TODO: castling moves
+    // castling moves
+    let castlingMoveIndex = castlingMoves.king.findIndex((m) => m === uciMove);
+    if (castlingMoveIndex !== -1) {
+      let rookUciMove = castlingMoves.rook[castlingMoveIndex];
+      let { rank: rookFromRankIndex, file: rookFromFileIndex } =
+        getArrayNotation(rookUciMove.slice(0, 2));
+      let { rank: rookToRankIndex, file: rookToFileIndex } = getArrayNotation(
+        rookUciMove.slice(2, 4)
+      );
+      newBoard[rookToRankIndex][rookToFileIndex] =
+        currentBoard[rookFromRankIndex][rookFromFileIndex];
+      newBoard[rookFromRankIndex][rookFromFileIndex] = " ";
+    }
 
     // TODO: en passant captures
 
