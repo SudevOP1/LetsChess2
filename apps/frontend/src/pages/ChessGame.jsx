@@ -172,7 +172,21 @@ const ChessGame = () => {
       newBoard[rookFromRankIndex][rookFromFileIndex] = " ";
     }
 
-    // TODO: en passant captures
+    // en passant captures
+    if (
+      currentBoard[fromRankIndex][fromFileIndex].toLowerCase() === "p" &&
+      fromFileIndex !== toFileIndex &&
+      currentBoard[toRankIndex][toFileIndex] === " "
+    ) {
+      // white pawn takes
+      if (currentBoard[fromRankIndex][fromFileIndex] === "P") {
+        newBoard[toRankIndex + 1][toFileIndex] = " ";
+      }
+      // black pawn takes
+      else {
+        newBoard[toRankIndex - 1][toFileIndex] = " ";
+      }
+    }
 
     // TODO: promotion moves
 
