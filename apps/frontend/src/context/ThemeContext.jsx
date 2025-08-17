@@ -26,6 +26,9 @@ import neo_br from "../assets/pieces/neo/br.png";
 
 import default_move     from "../assets/sounds/default/move.mp3";
 import default_capture  from "../assets/sounds/default/capture.mp3";
+import default_promotion  from "../assets/sounds/default/promotion.mp3";
+import default_check    from "../assets/sounds/default/check.mp3";
+import default_castle   from "../assets/sounds/default/castle.mp3";
 
 import { createContext, useContext, useState } from "react";
 export const ThemeContext = createContext();
@@ -77,6 +80,9 @@ const soundSource = {
   default: {
     move: default_move,
     capture: default_capture,
+    promotion: default_promotion,
+    check: default_check,
+    castle: default_castle,
   }
 }
 

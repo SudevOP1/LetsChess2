@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import PageWithHeader from "../components/PageWithHeader";
 import { useMyContext } from "../context/MyContext.jsx";
 import ChessBoard from "../components/ChessBoard.jsx";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const ChessGame = () => {
-  let { profileData, backendWsUrl, accessToken } = useMyContext();
+  let { profileData, backendWsUrl, accessToken, theme } = useMyContext();
   let { gameId } = useParams();
+  let navigate = useNavigate();
 
   let getInitialBoard = () => [
     ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -19,8 +20,14 @@ const ChessGame = () => {
     ["R", "N", "B", "Q", "K", "B", "N", "R"],
   ];
 
-  let debug = false;
+  let debug = true;
+  let showLogs = false;
   let [board, setBoard] = useState(getInitialBoard());
+  let move_sound = new Audio(theme.sound.move);
+  let capture_sound = new Audio(theme.sound.capture);
+  let promotion_sound = new Audio(theme.sound.promotion);
+  let check_sound = new Audio(theme.sound.check);
+  let castle_sound = new Audio(theme.sound.castle);
 
   // ws stuff
   let wsRef = useRef(null);
@@ -30,10 +37,9 @@ const ChessGame = () => {
 
   // ws connection
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken || (gameData && gameData.gameover !== "ongoing")) {
       return;
     }
-
     let wsUrl = `${backendWsUrl}/game/${gameId}/?access_token=${accessToken}`;
     let ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -66,8 +72,12 @@ const ChessGame = () => {
     ws.onerror = (error) => {
       addLog("ws connection error", error, "red");
     };
-    ws.onclose = () => {
-      addLog("disconnect from ws", "", "yellow");
+    ws.onclose = (event) => {
+      addLog(
+        `disconnect from ws (code: ${event.code}, reason: ${event.reason})`,
+        "",
+        "yellow"
+      );
     };
 
     // close ws properly
@@ -81,6 +91,11 @@ const ChessGame = () => {
     };
   }, [gameId, accessToken]);
 
+  // TODO: organize these helper functions in separate file(s)
+  let castlingMoves = {
+    king: ["e1g1", "e1c1", "e8g8", "e8c8"],
+    rook: ["h1f1", "a1d1", "h8f8", "a8d8"],
+  };
   let addLog = (msg, data, color = "white") => {
     let currentTime = new Date().toLocaleTimeString([], {
       hour: "2-digit",
@@ -101,6 +116,10 @@ const ChessGame = () => {
     setLogs((prev) => [...prev, { msg: msgWithTime, color: color }]);
   };
   let trySendingUciMove = (uciMove) => {
+    if (!gameData) {
+      addLog("handled sending move, when no gameData", "", "yellow");
+      return;
+    }
     if (gameData.gameover !== "ongoing") {
       addLog("handled sending move, when game is over", "", "yellow");
       return;
@@ -109,46 +128,53 @@ const ChessGame = () => {
       addLog("handled sending undefined move", "", "yellow");
       return;
     }
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (!wsRef.current) {
+      addLog("handled sending move, when wsRef is null", "", "red");
+      return;
+    }
+    if (wsRef.current.readyState !== WebSocket.OPEN) {
+      addLog(`ws not open (state: ${wsRef.current.readyState})`, "", "red");
+      return;
+    }
+    try {
       wsRef.current.send(JSON.stringify({ move: uciMove }));
       addLog(`tried sending move: ${uciMove}`);
+    } catch (e) {
+      addLog(`error sending move: ${error.message}`, "", "red");
     }
   };
-  let makeMoveAndGetBoard = (
-    board,
-    fromRankIndex,
-    fromFileIndex,
-    toRankIndex,
-    toFileIndex
-  ) => {
-    let newBoard = board.map((row) => [...row]);
-    newBoard[toRankIndex][toFileIndex] = board[fromRankIndex][fromFileIndex];
-    newBoard[fromRankIndex][fromFileIndex] = " ";
-    return newBoard;
-  };
-  // TODO: put these helper functions in a separate file
   let getArrayNotation = (notation) => {
     return {
       file: notation[0].charCodeAt(0) - 97,
       rank: 8 - parseInt(notation[1]),
     };
   };
+  let makeMoveAndGetBoard = (uciMove, currentBoard) => {
+    let { rank: fromRankIndex, file: fromFileIndex } = getArrayNotation(
+      uciMove.slice(0, 2)
+    );
+    let { rank: toRankIndex, file: toFileIndex } = getArrayNotation(
+      uciMove.slice(2, 4)
+    );
+    let newBoard = currentBoard.map((row) => [...row]);
+
+    // TODO: castling moves
+
+    // TODO: en passant captures
+
+    // TODO: promotion moves
+
+    // normal moves
+    newBoard[toRankIndex][toFileIndex] =
+      currentBoard[fromRankIndex][fromFileIndex];
+    newBoard[fromRankIndex][fromFileIndex] = " ";
+
+    return newBoard;
+  };
   let makeMovesAndGetBoard = (uciMoves) => {
     let newBoard = board.map((row) => [...row]);
-    for (let move of uciMoves) {
-      let { rank: fromRankIndex, file: fromFileIndex } = getArrayNotation(
-        move.slice(0, 2)
-      );
-      let { rank: toRankIndex, file: toFileIndex } = getArrayNotation(
-        move.slice(2, 4)
-      );
-      newBoard = makeMoveAndGetBoard(
-        newBoard,
-        fromRankIndex,
-        fromFileIndex,
-        toRankIndex,
-        toFileIndex
-      );
+    for (let uciMove of uciMoves) {
+      newBoard = makeMoveAndGetBoard(uciMove, newBoard);
     }
     return newBoard;
   };
@@ -159,10 +185,12 @@ const ChessGame = () => {
     );
   };
 
+  // loading
   if (!gameData) {
     return (
       <PageWithHeader classNames="flex flex-col gap-1">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex flex-row items-center justify-center h-64 gap-2">
+          <div className="w-5 h-5 border-3 border-lime-300 border-b-transparent rounded-full animate-spin" />
           <p className="text-lime-300 text-xl">Loading game...</p>
         </div>
       </PageWithHeader>
@@ -171,7 +199,7 @@ const ChessGame = () => {
 
   return (
     <>
-      {debug ? (
+      {showLogs ? (
         // debug menu
         <div className="bg-gray-900 text-white min-h-screen w-full p-20">
           {/* GameMetadata */}

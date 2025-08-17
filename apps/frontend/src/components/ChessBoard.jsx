@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { useMyContext } from "../context/MyContext";
+import { useMyContext } from "../context/MyContext.jsx";
 
 const ChessBoard = ({ classNames, board, legalMoves, trySendingUciMove }) => {
-  let { theme } = useMyContext();
-  let move_sound = new Audio(theme.sound.move);
-  let capture_sound = new Audio(theme.sound.capture);
 
   let getEmptyArray = (fillWith = "") => {
     return Array.from({ length: 8 }, () => Array(8).fill(fillWith));
   };
 
+  let { theme } = useMyContext();
   let [heldPiece, setHeldPiece] = useState(null);
   let [highlightedSquares, setHighlightedSquares] = useState(
     getEmptyArray(false)
@@ -59,14 +57,6 @@ const ChessBoard = ({ classNames, board, legalMoves, trySendingUciMove }) => {
       trySendingUciMove(fromSqNotation + toSq);
       setHighlightedSquares(getEmptyArray(false));
       setHeldPiece(null);
-
-      // play sound
-      if (board[toRankIndex][toFileIndex] === " ") {
-        move_sound.play();
-      } else {
-        capture_sound.play();
-      }
-
       return;
     }
     setHighlightedSquares(getEmptyArray(false));
