@@ -96,8 +96,9 @@ const ChessBoard = ({ classNames, board, legalMoves, trySendingUciMove }) => {
         promotionQuery.toSqNotation +
         piece.toLowerCase()
     );
-    setHeldPiece(null);
     setPromotionQuery(null);
+    setHeldPiece(null);
+    setHighlightedSquares(null);
   };
 
   let allowDrop = (e) => e.preventDefault();
@@ -147,7 +148,13 @@ const ChessBoard = ({ classNames, board, legalMoves, trySendingUciMove }) => {
                 promotionQuery.toRankIndex === rankIndex && (
                   <div
                     className={`w-full h-fit bg-white absolute left-1/2 top-1/2 -translate-x-1/2
-                    z-10 flex flex-col rounded-lg shadow-[0px_0px_10px_5px_rgba(0,_0,_0,_0.5)] ${board[promotionQuery.fromRankIndex][promotionQuery.fromFileIndex]==="P"?"-translate-y-1/4":"-translate-y-full"}`}
+                    z-10 flex flex-col rounded-lg shadow-[0px_0px_10px_5px_rgba(0,_0,_0,_0.5)] ${
+                      board[promotionQuery.fromRankIndex][
+                        promotionQuery.fromFileIndex
+                      ] === "P"
+                        ? "-translate-y-1/4"
+                        : "-translate-y-full"
+                    }`}
                   >
                     <button
                       className="w-full flex items-center justify-center border-b border-gray-700 bg-gray-300
