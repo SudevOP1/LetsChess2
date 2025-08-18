@@ -188,7 +188,12 @@ const ChessGame = () => {
       }
     }
 
-    // TODO: promotion moves
+    // promotion moves
+    if (uciMove.length === 5) {
+      newBoard[toRankIndex][toFileIndex] = newBoard[fromRankIndex][fromFileIndex] === "P" ? uciMove[4].toUpperCase() : uciMove[4];
+      newBoard[fromRankIndex][fromFileIndex] = " ";
+      return newBoard;
+    }
 
     // normal moves
     newBoard[toRankIndex][toFileIndex] =
