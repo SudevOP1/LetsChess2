@@ -1,9 +1,0 @@
-django
-channels
-daphne
-django-cors-headers
-djangorestframework-simplejwt
-beautifulsoup4
-requests
-chess
-
