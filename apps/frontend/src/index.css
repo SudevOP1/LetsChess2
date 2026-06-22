@@ -1,1 +1,90 @@
 @import "tailwindcss";
+
+@theme {
+  --color-text:             var(--color-purple-200);
+  --color-text-strong:      var(--color-white);
+  --color-text-weak:        var(--color-slate-500);
+  --color-background:       var(--color-slate-950);
+  --color-surface:          var(--color-slate-900);
+  --color-surface-hover:    var(--color-slate-800);
+  --color-surface-active:   var(--color-slate-600);
+  --color-primary:          var(--color-purple-400);
+  --color-primary-hover:    var(--color-purple-600);
+  --color-primary-active:   var(--color-purple-800);
+  --color-secondary:        var(--color-rose-800);
+  --color-disabled:         var(--color-slate-600);
+}
+
+@layer base {
+  * {
+    @apply transition duration-200;
+  }
+}
+
+/* toast timer bar */
+@keyframes shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/* toast appear */
+@keyframes slideIn {
+  0% {
+    transform: translateX(-150%);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(20%);
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* toast disapper */
+@keyframes slideOut {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-150%);
+    opacity: 0;
+  }
+}
+
+/* mobile menu open */
+@keyframes mobileMenuEnter {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* mobile menu close */
+@keyframes mobileMenuExit {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* mobile menu open */
+.animate-mobile-menu {
+  animation: mobileMenuEnter 0.6s ease-out forwards;
+}
+
+/* mobile menu close */
+.animate-mobile-menu-exit {
+  animation: mobileMenuExit 0.6s ease-in forwards;
+  pointer-events: none;
+}

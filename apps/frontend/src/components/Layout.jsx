@@ -9,7 +9,7 @@ const Layout = () => {
   const { toastsList } = useToastContext();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-slate-100">
+    <div className="min-h-screen flex flex-col bg-background text-text">
       <Navbar />
 
       <main className="flex-1 h-auto">

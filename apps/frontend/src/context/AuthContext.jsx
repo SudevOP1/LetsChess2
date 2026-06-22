@@ -21,7 +21,8 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const { addToast } = useToastContext();
 
-  const [loading, setLoading] = useState(true);
+  const [loadingAuthData, setLoadingAuthData] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [userId, setUserId] = useState(null);
   const [username, setUsername] = useState(null);
@@ -32,6 +33,8 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem("accessToken");
     const storedUserId = localStorage.getItem("userId");
     const storedUsername = localStorage.getItem("username");
+
+    setLoadingAuthData(true);
 
     if (token) {
       try {
@@ -62,9 +65,11 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("userId");
         localStorage.removeItem("username");
+      } finally {
+        setLoadingAuthData(false);
       }
     }
-    setLoading(false);
+    setLoadingAuthData(false);
   }, []);
 
   const signupUser = async (username = "", password = "") => {
@@ -162,12 +167,13 @@ export const AuthProvider = ({ children }) => {
     backendUrl: backendUrl,
     frontendUrl: frontendUrl,
     accessToken: accessToken,
+    loading: loading,
     signupUser: signupUser,
     loginUser: loginUser,
     logoutUser: logoutUser,
   };
 
-  return <AuthContext.Provider value={contextData}>{loading ? <LoadingScreen /> : children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={contextData}>{loadingAuthData ? <LoadingScreen /> : children}</AuthContext.Provider>;
 };
 
 export default AuthContext;
