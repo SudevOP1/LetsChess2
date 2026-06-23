@@ -5,18 +5,18 @@ import Navbar from "./ui/Navbar.jsx";
 import Footer from "./ui/Footer.jsx";
 import Toast from "./ui/Toast.jsx";
 
-const Layout = () => {
+const Layout = ({ showNavbar = true, showFooter = true }) => {
   const { toastsList } = useToastContext();
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-text">
-      <Navbar />
+      {showNavbar && <Navbar />}
 
       <main className="flex-1 h-auto">
         <Outlet />
       </main>
 
-      <Footer />
+      {showFooter && <Footer />}
 
       <div className="fixed bottom-5 left-5 flex flex-col gap-2">
         {toastsList.map((toastItem) => (

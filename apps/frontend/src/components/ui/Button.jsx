@@ -1,3 +1,4 @@
+import { twMerge } from "tailwind-merge";
 import Loader from "./Loader";
 
 const Button = ({ children, variant = "primary", size = "md", isLoading = false, className = "", ...props }) => {
@@ -11,17 +12,20 @@ const Button = ({ children, variant = "primary", size = "md", isLoading = false,
     outline:
       "bg-none hover:bg-surface-hover active:bg-surface-active disabled:bg-disabled text-white border border-surface-hover active:border-surface-active",
     ghost: "bg-none hover:bg-surface-hover active:bg-surface-active disabled:bg-disabled text-white",
+    custom: "",
   };
 
   const sizes = {
     sm: "h-9 px-3 text-sm",
     md: "h-10 px-4 py-2",
     lg: "h-11 px-8 text-lg",
+    icon: "h-8 w-8 p-0",
+    custom: "",
   };
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={twMerge(baseStyles, variants[variant], sizes[size], className)}
       disabled={isLoading || props.disabled}
       {...props}
     >

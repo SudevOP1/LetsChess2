@@ -14,7 +14,7 @@ const Navbar = () => {
     "Find Match": {
       condition: userId,
       type: "link",
-      to: "#",
+      to: "/find-game",
       variant: "primary",
       size: "md",
     },

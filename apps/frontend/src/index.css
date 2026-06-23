@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-text:             var(--color-purple-200);
+  --color-text:             var(--color-slate-300);
   --color-text-strong:      var(--color-white);
   --color-text-weak:        var(--color-slate-500);
   --color-background:       var(--color-slate-950);
@@ -87,4 +87,32 @@
 .animate-mobile-menu-exit {
   animation: mobileMenuExit 0.6s ease-in forwards;
   pointer-events: none;
+}
+
+/* custom scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-hover) transparent;
+}
+
+/* custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+/* custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-active);
+  border-radius: 999px;
+}
+
+/* custom scrollbar */
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-hover);
 }
