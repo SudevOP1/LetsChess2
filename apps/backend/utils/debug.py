@@ -14,12 +14,16 @@ def create_log_file_if_not_exists() -> None:
     if DEBUG:
         try:
             dir_path = os.path.dirname(LOG_FILEPATH)
+
+            # create parent dirs if not exist
             if dir_path and not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
+            # create file if not exists
             if not os.path.exists(LOG_FILEPATH):
                 with open(LOG_FILEPATH, "w", encoding="utf-8") as f:
                     f.write("timestamp,log_type,name,msg\n")
+
         except Exception as e:
             print(f"[{red}ERROR{clear}] Failed to create log file: {e}")
 

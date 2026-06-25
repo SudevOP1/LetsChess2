@@ -22,7 +22,7 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (password !== password2) {
-      addToast("Passwords do not match", "red", 3);
+      addToast("Passwords do not match", "red", 5);
       return;
     }
     await signupUser(username, password);

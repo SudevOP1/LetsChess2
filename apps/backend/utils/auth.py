@@ -70,26 +70,34 @@ def verify_token(token: str) -> tuple[bool, dict | str]:
         return False, "invalid token"
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Security(security),
-) -> dict:
+async def get_current_user_from_token(token: str) -> tuple[str, dict]:
 
-    token = credentials.credentials
     payload_ok, payload = verify_token(token)
 
     if not payload_ok:
-        raise HTTPException(status_code=401, detail=payload)
+        return False, payload
 
     username = payload.get("username")
     if not username:
-        raise HTTPException(status_code=401, detail="invalid token")
+        return False, "invalid token"
 
     # verify user still exists
     user = await db.users.find_one({"username": username})
     if not user:
-        raise HTTPException(status_code=401, detail="user not found")
+        return False, "user not found"
 
-    return {"username": username, "id": user.get("_id")}
+    return True, {
+        "id": str(user.get("_id")),
+        "username": username,
+        "elo": int(user.get("elo", 500)),
+        "created_at": user.get("created_at"),
+    }
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+) -> tuple[str, dict]:
+    return await get_current_user_from_token(credentials.credentials)
 
 
 async def create_user(username: str, password: str):
@@ -99,6 +107,7 @@ async def create_user(username: str, password: str):
         {
             "username": username,
             "password": hashed,
+            "elo": 500,
             "created_at": datetime.utcnow(),
         }
     )

@@ -8,6 +8,8 @@ from utils import debug
 from utils.db import create_collections_if_not_exists
 from utils.settings import get_settings
 from routes.auth_routes import auth_router
+from routes.user_routes import user_router
+from routes.game_routes import game_router
 
 settings = get_settings()
 
@@ -23,6 +25,8 @@ async def lifespan(app: FastAPI):
     await create_collections_if_not_exists(
         [
             "users",
+            "games",
+            "matchmaking",
         ]
     )
 
@@ -44,6 +48,8 @@ app.add_middleware(
 
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(user_router, prefix="/user", tags=["Users"])
+app.include_router(game_router, prefix="/game", tags=["Games"])
 
 
 @app.get("/status")

@@ -17,6 +17,7 @@ export const useAuthContext = () => {
 
 export const AuthProvider = ({ children }) => {
   const backendUrl = "http://127.0.0.1:8000";
+  const wsUrl = "ws://127.0.0.1:8000";
   const frontendUrl = "http://localhost:5173";
   const navigate = useNavigate();
   const { addToast } = useToastContext();
@@ -133,7 +134,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("userId", data.id);
         localStorage.setItem("username", username);
 
-        addToast(`Login successful, Welcome ${username}`, "green", 4);
+        addToast(`Login successful, Welcome ${username}`, "green", 3);
         navigate(navigateTo);
       } else {
         addToast("Login failed: " + (data.error || "invalid credentials"), "red", 5);
@@ -146,17 +147,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logoutUser = () => {
+  const logoutUser = (showToast = true) => {
     setAccessToken(null);
     setUser(null);
     setUserId(null);
     setUsername(null);
 
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("username");
+    localStorage.clear();
 
-    addToast("Logged out!", "green", 3);
+    if (showToast) addToast("Logged out!", "green", 3);
     navigate("/login");
   };
 
@@ -165,6 +164,7 @@ export const AuthProvider = ({ children }) => {
     userId: userId,
     username: username,
     backendUrl: backendUrl,
+    wsUrl: wsUrl,
     frontendUrl: frontendUrl,
     accessToken: accessToken,
     loading: loading,

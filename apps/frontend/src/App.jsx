@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { ApiProvider } from "./context/ApiContext.jsx";
 import { ToastProvider } from "./context/ToastContext.jsx";
 import Layout from "./components/Layout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -17,23 +18,25 @@ const App = () => {
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
-          <Routes>
+          <ApiProvider>
+            <Routes>
 
-            {/* routes with navbar & footer */}
-            <Route    path="/" element={<Layout showNavbar={true} showFooter={true} />}>
-              <Route  index                       element={<MainPage />} />
-              <Route  path="/login"               element={<LoginPage />} />
-              <Route  path="/signup"              element={<SignupPage />} />
-              <Route  path="*"                    element={<BrokenURL />} />
-            </Route>
+              {/* routes with navbar & footer */}
+              <Route    path="/" element={<Layout showNavbar={true} showFooter={true} />}>
+                <Route  index                       element={<MainPage />} />
+                <Route  path="/login"               element={<LoginPage />} />
+                <Route  path="/signup"              element={<SignupPage />} />
+                <Route  path="*"                    element={<BrokenURL />} />
+              </Route>
 
-            {/* routes without navbar & footer */}
-            <Route    path="/" element={<Layout showNavbar={false} showFooter={false} />}>
-              <Route  path="/find-game"           element={<ProtectedRoute><FindGamePage /></ProtectedRoute>} />
-              <Route  path="/game/:gameId"        element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
-            </Route>
+              {/* routes without navbar & footer */}
+              <Route    path="/" element={<Layout showNavbar={false} showFooter={false} />}>
+                <Route  path="/find-game"           element={<ProtectedRoute><FindGamePage /></ProtectedRoute>} />
+                <Route  path="/game/:gameId"        element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+              </Route>
 
-          </Routes>
+            </Routes>
+          </ApiProvider>
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>
