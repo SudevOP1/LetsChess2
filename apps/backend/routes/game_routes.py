@@ -4,7 +4,7 @@ from bson import ObjectId
 import traceback
 import asyncio
 
-from utils.auth import get_current_user_from_token
+from utils.auth import authenticate_websocket_user
 from utils.db import db
 from utils import debug
 
@@ -39,63 +39,6 @@ async def find_game(websocket: WebSocket):
 
         except Exception:
             cancel_event.set()
-
-    async def authenticate_player():
-        while not cancel_event.is_set():
-            data = await incoming_messages.get()
-
-            # cancelled before authentication
-            if data.get("type") == "cancel":
-                cancel_event.set()
-                return None
-
-            # invalid message type
-            if data.get("type") != "access_token":
-                await websocket.send_json(
-                    {
-                        "type": "error",
-                        "error": "access token required",
-                    }
-                )
-                continue
-
-            token = data.get("access_token")
-
-            # no token provided
-            if not token:
-                await websocket.send_json(
-                    {
-                        "type": "error",
-                        "error": "no token provided",
-                    }
-                )
-                continue
-
-            try:
-                user_ok, user = await get_current_user_from_token(token)
-
-                # auth error
-                if not user_ok:
-                    await websocket.send_json(
-                        {
-                            "type": "error",
-                            "error": user,
-                        }
-                    )
-                    continue
-
-                return user
-
-            except HTTPException as e:
-                await websocket.send_json(
-                    {
-                        "type": "error",
-                        "error": e.detail,
-                    }
-                )
-                continue
-
-        return None
 
     async def add_to_matchmaking():
         result = await db.matchmaking.insert_one(
@@ -144,7 +87,7 @@ async def find_game(websocket: WebSocket):
 
     try:
         # authenticate user
-        current_user = await authenticate_player()
+        current_user = await authenticate_websocket_user(incoming_messages, websocket)
         if current_user is None:
             return
 
