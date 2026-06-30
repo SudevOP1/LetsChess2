@@ -17,13 +17,18 @@ game_router = APIRouter()
 max_search_range = 1000
 search_interval = 1.0  # second
 
-# active game websocket connections
-connections: dict[str : dict[str:WebSocket]] = {
-    #     game_id: {
-    #         player1_id: websocket1,
-    #         player2_id: websocket2,
-    #     }
-}
+
+class GameSession:
+    def __init__(self, game: dict):
+        self.game = game
+        self.board = Board()
+        # load board
+        for move in game.get("moves", "").split():
+            self.board.push_san(move)
+        self.connections: dict[str, WebSocket] = {}
+
+
+game_sessions: dict[str, GameSession] = {}
 
 
 @game_router.websocket("/find")
@@ -213,19 +218,21 @@ async def play_game(websocket: WebSocket, game_id: str):
     current_user = None
     opponent_user = None
     incoming_messages = asyncio.Queue()
-    game = None  # local copy
-    board = Board()
+    session = None
+
+    async def receiver() -> None:
+        while True:
+            message = await websocket.receive_json()
+            await incoming_messages.put(message)
 
     async def send_to_player(msg: dict) -> None:
         await websocket.send_json(msg)
 
     async def send_to_opponent(msg: dict) -> None:
         try:
-            if opponent_user is None:
+            if opponent_user is None or session is None:
                 return
-            opponent_websocket = connections.get(game_id, {}).get(
-                opponent_user.get("id"), None
-            )
+            opponent_websocket = session.connections.get(opponent_user.get("id"), None)
             if opponent_websocket is not None:
                 await opponent_websocket.send_json(msg)
         except Exception:
@@ -236,6 +243,10 @@ async def play_game(websocket: WebSocket, game_id: str):
         await send_to_opponent(msg)
 
     async def handle_message(msg: dict) -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
 
         match msg.get("type", ""):
             case "request_metadata":
@@ -275,6 +286,10 @@ async def play_game(websocket: WebSocket, game_id: str):
                 await send_to_player({"type": "invalid_message"})
 
     async def handle_uci_move(uci_move: str) -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
 
         # check turn
         turn = "w" if board.turn else "b"
@@ -323,6 +338,10 @@ async def play_game(websocket: WebSocket, game_id: str):
             return
 
     async def handle_game_over():
+        if session is None:
+            return
+        game = session.game
+        board = session.board
 
         # set game data
         game_data = get_game_data(board, game.get("moves", "").split())
@@ -343,16 +362,22 @@ async def play_game(websocket: WebSocket, game_id: str):
 
         return
 
-    try:
-        # check if game exists
-        game = await db.games.find_one({"_id": ObjectId(game_id)})
-        if not game:
-            await websocket.send_json({"type": "error", "error": "game not found"})
-            return
+    receiver_task = asyncio.create_task(receiver())
 
-        # load board
-        for move in game.get("moves", "").split():
-            board.push_san(move)
+    try:
+        # check if game exists in sessions or db
+        if game_id in game_sessions:
+            session = game_sessions[game_id]
+            game = session.game
+            board = session.board
+        else:
+            game = await db.games.find_one({"_id": ObjectId(game_id)})
+            if not game:
+                await websocket.send_json({"type": "error", "error": "game not found"})
+                return
+            session = GameSession(game)
+            game_sessions[game_id] = session
+            board = session.board
 
         # authenticate user
         current_user = await authenticate_websocket_user(incoming_messages, websocket)
@@ -362,7 +387,7 @@ async def play_game(websocket: WebSocket, game_id: str):
         # get opponent
         opponent_user_id = str(
             game.get("player1_id")
-            if current_user.get("id") == game.get("player2_id")
+            if current_user.get("id") == str(game.get("player2_id"))
             else game.get("player2_id")
         )
         opponent_user = await db.users.find_one({"_id": ObjectId(opponent_user_id)})
@@ -380,9 +405,7 @@ async def play_game(websocket: WebSocket, game_id: str):
             return
 
         # add user to active connections
-        if game_id not in connections.keys():
-            connections[game_id] = {}
-        connections[game_id][current_user.get("id")] = websocket
+        session.connections[current_user.get("id")] = websocket
 
         while True:
             msg = await incoming_messages.get()
@@ -410,8 +433,15 @@ async def play_game(websocket: WebSocket, game_id: str):
 
     finally:
         # cleanup
-        if game_id in connections:
+        receiver_task.cancel()
+
+        try:
+            await receiver_task
+        except asyncio.CancelledError:
+            pass
+
+        if game_id in game_sessions:
             if current_user:
-                connections[game_id].pop(current_user["id"], None)
-            if not connections[game_id]:
-                del connections[game_id]
+                session.connections.pop(current_user.get("id"), None)
+            if not session.connections:
+                game_sessions.pop(game_id, None)

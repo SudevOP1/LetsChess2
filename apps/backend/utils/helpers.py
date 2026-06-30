@@ -19,7 +19,7 @@ async def get_game_metadata(
         "player2_username": player2.get("username"),
         "player1_elo": player1.get("elo"),
         "player2_elo": player2.get("elo"),
-        "started_at": game.get("created_at"),
+        "started_at": game.get("created_at").isoformat(),
     }
 
 
@@ -37,7 +37,7 @@ def get_game_data(board: Board, san_moves: list[str] | None = None) -> dict:
             temp.push(move)
 
     # TODO: resignation, draw_by_agreement, timeout
-    result = ""
+    result = None
     if board.is_checkmate():
         result = "checkmate"
     elif board.is_stalemate():
@@ -53,6 +53,7 @@ def get_game_data(board: Board, san_moves: list[str] | None = None) -> dict:
         "fen": board.fen(),
         "san_moves": san_moves,
         "uci_moves": uci_moves,
+        "legal_moves": [move.uci() for move in board.legal_moves],
         "is_check": board.is_check(),
         "is_game_over": board.is_game_over(),
         "turn": "w" if board.turn else "b",

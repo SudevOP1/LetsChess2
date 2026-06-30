@@ -18,13 +18,16 @@ const GamePage = () => {
   const [selfData, setSelfData] = useState({});
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState("idle"); // idle, searching
-  const fenString = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
+
+  const debug = false;
   let wsRef = useRef(null);
+  const fenString = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
 
   const fetchSelfData = async () => {
     const [success, data] = await fetchApi(`${backendUrl}/user/me`, "GET", null, setLoading);
     if (!success) {
-      return console.error(data.error);
+      console.error(data.error);
+      return;
     }
     setSelfData(data.me);
   };
@@ -33,7 +36,7 @@ const GamePage = () => {
     setState("searching");
   };
 
-  let handleCancelSearch = () => {
+  const handleCancelSearch = () => {
     const ws = wsRef.current;
 
     setState("idle");
@@ -59,11 +62,11 @@ const GamePage = () => {
     switch (msg.type) {
       case "error": {
         if (msg.error === "invalid token") {
-          addToast("Session expired, Please login again", "red", 5);
+          addToast("Session expired, Please login again!", "red", 5);
           handleWsClose();
           logoutUser(false);
         } else {
-          console.log("error msg received from ws: ", msg.error);
+          console.error("error msg received from ws: ", msg.error);
           addToast("Something went wrong", "red", 5);
           handleWsClose();
         }
@@ -71,12 +74,12 @@ const GamePage = () => {
       }
 
       case "waiting": {
-        console.log("added to matchmaking queue");
+        if (debug) console.log("added to matchmaking queue");
         break;
       }
 
       case "found": {
-        console.log("match found");
+        if (debug) console.log("match found");
         addToast("Match found!", "green", 3);
         handleWsClose();
         navigate(`/game/${msg.game_id}`);
@@ -93,7 +96,6 @@ const GamePage = () => {
 
   const handleWsClose = () => {
     setState("idle");
-    if (wsRef.current) wsRef.current.close();
     wsRef.current = null;
   };
 
@@ -112,15 +114,15 @@ const GamePage = () => {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log("ws connected");
+      if (debug) console.log("ws connected");
       ws.send(JSON.stringify({ type: "access_token", access_token: accessToken }));
-      console.log("sent access token");
+      if (debug) console.log("sent access token");
     };
 
     ws.onmessage = (event) => {
       try {
         let msg = JSON.parse(event.data);
-        console.log(`received msg: ${JSON.stringify(msg)}`);
+        if (debug) console.log(`received msg: ${JSON.stringify(msg)}`);
         handleWsMsg(msg);
       } catch (e) {
         console.error(`error parsing msg: ${e}`);
@@ -135,7 +137,7 @@ const GamePage = () => {
     };
 
     ws.onclose = (event) => {
-      console.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
+      if (debug) console.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
       handleWsClose();
     };
 

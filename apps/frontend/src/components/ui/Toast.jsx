@@ -21,21 +21,21 @@ const Toast = ({ id, text = "", color = "red", time = 3 }) => {
 
   const colors = {
     red: {
-      text: "text-red-400",
-      button: "text-red-400 hover:text-red-100 hover:bg-red-500/30",
-      outerDiv: "border-red-400 bg-red-500/20",
+      text: "text-red-300",
+      button: "text-red-300 hover:text-red-100 hover:bg-red-500/30",
+      outerDiv: "border-red-400 bg-red-500/40",
       barAnimation: "border-red-400",
     },
     green: {
-      text: "text-green-400",
-      button: "text-green-400 hover:text-green-100 hover:bg-green-500/30",
-      outerDiv: "border-green-400 bg-green-500/20",
+      text: "text-green-300",
+      button: "text-green-300 hover:text-green-100 hover:bg-green-500/30",
+      outerDiv: "border-green-400 bg-green-500/40",
       barAnimation: "border-green-400",
     },
     gray: {
       text: "text-gray-300",
       button: "text-gray-300 hover:text-gray-100 hover:bg-gray-500/30",
-      outerDiv: "border-gray-300 bg-gray-500/20",
+      outerDiv: "border-gray-300 bg-gray-500/40",
       barAnimation: "border-gray-300",
     },
   };
@@ -43,7 +43,7 @@ const Toast = ({ id, text = "", color = "red", time = 3 }) => {
   return (
     <div
       className={`relative w-fit min-w-sm max-w-lg border rounded-xl flex flex-col
-        overflow-hidden backdrop-blur-sm ${colors[color].outerDiv}`}
+        overflow-hidden backdrop-blur-lg ${colors[color].outerDiv}`}
       style={{
         animation: isExiting ? "slideOut 0.5s ease forwards" : "slideIn 0.5s ease forwards",
       }}

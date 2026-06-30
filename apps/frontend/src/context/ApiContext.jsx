@@ -43,7 +43,7 @@ export const ApiProvider = ({ children }) => {
       // unsuccessful api call
       if (!res.ok) {
         if (data && ["token expired", "invalid token"].includes(data.error)) {
-          addToast("Session expired, Please login again", "red", 5);
+          addToast("Session expired, Please login again!", "red", 5);
           logoutUser(false);
           return [false, data.error];
         }
@@ -51,7 +51,7 @@ export const ApiProvider = ({ children }) => {
       } else {
         // expired or invalid token
         if (["token expired", "invalid token"].includes(data.error)) {
-          addToast("Session expired, Please login again", "red", 5);
+          addToast("Session expired, Please login again!", "red", 5);
           logoutUser(false);
           return [false, data.error];
         }
