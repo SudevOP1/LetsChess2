@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Ban, Flag, ArrowLeft, ArrowRight } from "lucide-react";
 
+import move from "../assets/sounds/move.mp3";
+import capture from "../assets/sounds/capture.mp3";
+import promotion from "../assets/sounds/promotion.mp3";
+import check from "../assets/sounds/check.mp3";
+import castle from "../assets/sounds/castle.mp3";
+import gameover from "../assets/sounds/gameover.mp3";
+
 import { useAuthContext } from "../context/AuthContext";
 import { useToastContext } from "../context/ToastContext";
 import Button from "../components/ui/Button";
@@ -30,6 +37,14 @@ const GamePage = () => {
   const [turn, setTurn] = useState("w");
   const [result, setResult] = useState(null);
 
+  // sounds
+  const move_sound = new Audio(move);
+  const capture_sound = new Audio(capture);
+  const promotion_sound = new Audio(promotion);
+  const check_sound = new Audio(check);
+  const castle_sound = new Audio(castle);
+  const gameover_sound = new Audio(gameover);
+
   const debug = false;
   let wsRef = useRef(null);
 
@@ -55,7 +70,7 @@ const GamePage = () => {
         handleWsMsg(msg);
       } catch (e) {
         console.error(`error parsing msg: ${e}`);
-        // Only clear ref if this is still the active WebSocket
+        // only clear ref if this is still the active webSocket
         if (wsRef.current === ws) {
           wsRef.current = null;
         }
@@ -68,18 +83,18 @@ const GamePage = () => {
 
     ws.onclose = (event) => {
       if (debug) console.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
-      // Only clear ref if this is still the active WebSocket
+      // only clear ref if this is still the active webSocket
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
     };
 
-    // close ws properly on cleanup (e.g. StrictMode remount or unmount)
+    // close ws properly on cleanup
     return () => {
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
-      // Only clear ref if it still points to this instance
+      // only clear ref if it still points to this instance
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
@@ -135,6 +150,44 @@ const GamePage = () => {
     };
   };
 
+  const playMoveSound = (moveMsg) => {
+    const sanMove = moveMsg?.san_moves?.[moveMsg.san_moves.length - 1];
+    if (!sanMove) {
+      return;
+    }
+
+    // select sound to play
+    let soundToPlay = move_sound;
+    if (sanMove.includes("+") || sanMove.includes("#")) {
+      soundToPlay = check_sound;
+    } else if (sanMove.includes("x")) {
+      soundToPlay = capture_sound;
+    } else if (sanMove.includes("O-O") || sanMove.includes("O-O-O")) {
+      soundToPlay = castle_sound;
+    } else if (sanMove.includes("=")) {
+      soundToPlay = promotion_sound;
+    }
+
+    // play sound
+    soundToPlay.currentTime = 0;
+    soundToPlay.play().catch((e) => {
+      console.error("error playing sound:", e);
+    });
+
+    // play gameover sound after soundToPlay.duration
+    setTimeout(
+      () => {
+        if (moveMsg?.is_game_over) {
+          gameover_sound.currentTime = 0;
+          gameover_sound.play().catch((e) => {
+            console.error("error playing sound:", e);
+          });
+        }
+      },
+      soundToPlay.duration * 1000 + 100,
+    );
+  };
+
   const handleWsMsg = (msg) => {
     switch (msg.type) {
       case "error": {
@@ -142,7 +195,7 @@ const GamePage = () => {
           addToast("Session expired, Please login again!", "red", 5);
           handleWsClose();
           logoutUser(false);
-        } else if (msg.error === "game is inactive") {
+        } else if (["game is inactive"].includes(msg.error)) {
           setGameData((prev) => (prev ? { ...prev, is_game_over: true } : { is_game_over: true }));
           setIsGameOver(true);
           handleWsClose();
@@ -177,7 +230,24 @@ const GamePage = () => {
         break;
       }
 
-      case "move":
+      case "move": {
+        // update details
+        setGameData(msg);
+        setFenString(msg?.fen);
+        setSanMoves(msg?.san_moves);
+        setUciMoves(msg?.uci_moves);
+        setLegalMoves(msg?.legal_moves);
+        setIsCheck(msg?.is_check);
+        setIsGameOver(msg?.is_game_over);
+        setTurn(msg?.turn);
+        setResult(msg?.result);
+
+        // play sound
+        playMoveSound(msg);
+
+        break;
+      }
+
       case "game_over": {
         setFenString(msg?.fen);
         setSanMoves(msg?.san_moves);
