@@ -3,12 +3,11 @@ from chess import Board  # pyrefly: ignore [missing-import]
 from bson import ObjectId
 from utils.db import db
 
-async def get_game_metadata(
-    game: dict
-) -> dict:
+
+async def get_game_metadata(game: dict) -> dict:
     player1_id = str(game.get("player1_id"))
     player2_id = str(game.get("player2_id"))
-    
+
     player1 = await db.users.find_one({"_id": ObjectId(player1_id)})
     player2 = await db.users.find_one({"_id": ObjectId(player2_id)})
 
@@ -23,33 +22,35 @@ async def get_game_metadata(
     }
 
 
-def get_game_data(board: Board, san_moves: list[str] | None = None) -> dict:
+def get_game_data(board: Board, game: dict | None = None) -> dict:
 
     # uci moves
     uci_moves = [move.uci() for move in board.move_stack]
 
     # san moves
-    if san_moves is None:
+    san_moves = game.get("moves", "").split()
+    if san_moves == "":
         temp = Board()
         san_moves = []
         for move in board.move_stack:
             san_moves.append(temp.san(move))
             temp.push(move)
 
-    # TODO: resignation, draw_by_agreement, timeout
-    result = None
-    winner = None
-    if board.is_checkmate():
-        result = "checkmate"
-        winner = "b" if board.turn else "w"
-    elif board.is_stalemate():
-        result = "stalemate"
-    elif board.is_insufficient_material():
-        result = "insufficient_material"
-    elif board.is_seventyfive_moves():
-        result = "seventyfive_moves"
-    elif board.is_fivefold_repetition():
-        result = "fivefold_repetition"
+    # result
+    result = game.get("result", None)
+    winner = game.get("winner", None)
+    if result is None:
+        if board.is_checkmate():
+            result = "checkmate"
+            winner = "b" if board.turn else "w"
+        elif board.is_stalemate():
+            result = "stalemate"
+        elif board.is_insufficient_material():
+            result = "insufficient_material"
+        elif board.is_seventyfive_moves():
+            result = "seventyfive_moves"
+        elif board.is_fivefold_repetition():
+            result = "fivefold_repetition"
 
     return {
         "fen": board.fen(),
@@ -57,7 +58,7 @@ def get_game_data(board: Board, san_moves: list[str] | None = None) -> dict:
         "uci_moves": uci_moves,
         "legal_moves": [move.uci() for move in board.legal_moves],
         "is_check": board.is_check(),
-        "is_game_over": board.is_game_over(),
+        "is_game_over": board.is_game_over() or (game is not None and game.get("status") == "gameover"),
         "turn": "w" if board.turn else "b",
         "result": result,
         "winner": winner,

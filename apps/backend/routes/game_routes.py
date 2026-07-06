@@ -262,7 +262,7 @@ async def play_game(websocket: WebSocket, game_id: str):
                 await send_to_player(
                     {
                         "type": "data",
-                        "data": get_game_data(board, game.get("moves", "").split()),
+                        "data": get_game_data(board, game),
                     }
                 )
 
@@ -279,6 +279,20 @@ async def play_game(websocket: WebSocket, game_id: str):
                     return
 
                 await handle_uci_move(msg.get("move", ""))
+
+            case "resign":
+                if game.get("status") != "active":
+                    await send_to_player({"type": "error", "error": "game is inactive"})
+                    return
+
+                if current_user.get("id") not in [
+                    str(game.get("player1_id")),
+                    str(game.get("player2_id")),
+                ]:
+                    await send_to_player({"type": "error", "error": "not your game"})
+                    return
+
+                await handle_resign()
 
             case _:
                 await send_to_player({"type": "invalid_message"})
@@ -326,7 +340,7 @@ async def play_game(websocket: WebSocket, game_id: str):
             {
                 "type": "move",
                 "move": uci_move,
-                **get_game_data(board, game.get("moves", "").split()),
+                **get_game_data(board, game),
             }
         )
 
@@ -335,14 +349,42 @@ async def play_game(websocket: WebSocket, game_id: str):
             await handle_game_over()
             return
 
-    async def handle_game_over():
+    async def handle_resign() -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
+
+        # check turn
+        current_user_color = (
+            "w" if str(game.get("player1_id")) == current_user.get("id") else "b"
+        )
+
+        # update game
+        game["status"] = "gameover"
+        game["result"] = "resignation"
+        game["winner"] = "b" if current_user_color == "w" else "w"
+
+        # broadcast resignation
+        await broadcast(
+            {
+                "type": "resign",
+                **get_game_data(board, game),
+            }
+        )
+
+        # game over
+        await handle_game_over()
+        return
+
+    async def handle_game_over() -> None:
         if session is None:
             return
         game = session.game
         board = session.board
 
         # set game data
-        game_data = get_game_data(board, game.get("moves", "").split())
+        game_data = get_game_data(board, game)
         result = game_data.get("result")
 
         # update game
@@ -396,7 +438,7 @@ async def play_game(websocket: WebSocket, game_id: str):
 
         # send metadata and data
         game_metadata = await get_game_metadata(game)
-        game_data = get_game_data(board, game.get("moves", "").split())
+        game_data = get_game_data(board, game)
         await send_to_player({"type": "metadata", "metadata": game_metadata})
         await send_to_player({"type": "data", "data": game_data})
 
