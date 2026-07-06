@@ -18,7 +18,7 @@ const Layout = ({ showNavbar = true, showFooter = true }) => {
 
       {showFooter && <Footer />}
 
-      <div className="fixed bottom-5 left-5 flex flex-col gap-2">
+      <div className="fixed bottom-5 left-5 flex flex-col gap-2 z-40">
         {toastsList.map((toastItem) => (
           <Toast key={toastItem.id} {...toastItem} />
         ))}

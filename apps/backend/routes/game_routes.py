@@ -250,9 +250,7 @@ async def play_game(websocket: WebSocket, game_id: str):
 
         match msg.get("type", ""):
             case "request_metadata":
-                game_metadata = await get_game_metadata(
-                    game, current_user, opponent_user
-                )
+                game_metadata = await get_game_metadata(game)
                 await send_to_player(
                     {
                         "type": "metadata",
@@ -350,9 +348,11 @@ async def play_game(websocket: WebSocket, game_id: str):
         # update game
         game["status"] = "gameover"
         game["result"] = result
+        winner = game_data.get("winner")
+        game["winner"] = winner
         await db.games.update_one(
             {"_id": ObjectId(game_id)},
-            {"$set": {"status": "gameover", "result": result}},
+            {"$set": {"status": "gameover", "result": result, "winner": winner}},
         )
 
         # TODO: update users' elo
@@ -395,7 +395,7 @@ async def play_game(websocket: WebSocket, game_id: str):
         del opponent_user["_id"]
 
         # send metadata and data
-        game_metadata = await get_game_metadata(game, current_user, opponent_user)
+        game_metadata = await get_game_metadata(game)
         game_data = get_game_data(board, game.get("moves", "").split())
         await send_to_player({"type": "metadata", "metadata": game_metadata})
         await send_to_player({"type": "data", "data": game_data})

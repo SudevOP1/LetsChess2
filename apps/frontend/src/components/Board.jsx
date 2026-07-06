@@ -12,6 +12,7 @@ import bn from "../assets/pieces/neo/bn.png";
 import br from "../assets/pieces/neo/br.png";
 import bq from "../assets/pieces/neo/bq.png";
 import bk from "../assets/pieces/neo/bk.png";
+import { Crown } from "lucide-react";
 
 const pieceImgs = {
   P: wp,
@@ -80,6 +81,8 @@ const Board = ({
   isCheck = false,
   turn,
   makeMove,
+  isGameOver = false,
+  winner = null,
 }) => {
   const [piecePositions, setPiecePositions] = useState(getPiecePositions(fenString));
   const [selectedPiece, setSelectedPiece] = useState(null);
@@ -97,7 +100,7 @@ const Board = ({
   }, [fenString]);
 
   const isSelfPiece = (piece) => {
-    return selfColor === "w" ? /^[A-Z]$/.test(piece) : /^[a-z]$/.test(piece);
+    return !isGameOver && (selfColor === "w" ? /^[A-Z]$/.test(piece) : /^[a-z]$/.test(piece));
   };
 
   const getBoardIndices = (square) => {
@@ -263,13 +266,17 @@ const Board = ({
 
   return (
     <div
-      className={`flex items-center justify-center w-full h-full ${inverted ? "flex-col-reverse" : "flex-col"} ${className} ${draggingPiece ? "cursor-grabbing" : ""}`}
+      className={`flex items-center justify-center w-full h-full
+        ${inverted ? "flex-col-reverse" : "flex-col"}
+        ${className} ${draggingPiece ? "cursor-grabbing" : ""}
+      `}
     >
       {piecePositions.map((rank, rankIndex) => (
         <div
           key={rankIndex}
           className={`flex items-center justify-center h-full w-full max-w-[calc(min(8vw, 64vh))] lg:max-w-none
-            ${inverted ? "flex-row-reverse" : "flex-row"}`}
+            ${inverted ? "flex-row-reverse" : "flex-row"}
+          `}
         >
           {rank.map((pieceCharacter, fileIndex) => (
             <div
@@ -313,6 +320,13 @@ const Board = ({
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                   />
+                )}
+
+                {/* crown icon above winner king */}
+                {isGameOver && ((winner === "w" && pieceCharacter === "K") || (winner === "b" && pieceCharacter === "k")) && (
+                  <div className="absolute top-0 right-0 translate-x-3 -translate-y-3 rounded-full bg-green-500 w-6 h-6 flex items-center justify-center z-20">
+                    <Crown className="text-transparent w-5 h-5 translate-y-[1px]" fill="white" />
+                  </div>
                 )}
               </>
             </div>
