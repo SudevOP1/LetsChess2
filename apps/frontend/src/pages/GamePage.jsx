@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Ban, Flag, ArrowLeft, ArrowRight, Search, X, Crown } from "lucide-react";
 
 import move from "../assets/sounds/move.mp3";
@@ -54,6 +54,7 @@ const GamePage = () => {
 
   const debug = true;
   let wsRef = useRef(null);
+  const navigate = useNavigate();
 
   // ws
   useEffect(() => {
@@ -264,6 +265,10 @@ const GamePage = () => {
         } else if (["game is inactive"].includes(msg.error)) {
           setGameData((prev) => (prev ? { ...prev, is_game_over: true } : { is_game_over: true }));
           setIsGameOver(true);
+          handleWsClose();
+        } else if (["game not found"].includes(msg.error)) {
+          addToast("Game not found", "red", 5);
+          navigate("/find-game");
           handleWsClose();
         } else {
           console.error("error msg received from ws: ", msg.error);

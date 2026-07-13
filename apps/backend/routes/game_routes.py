@@ -413,7 +413,11 @@ async def play_game(websocket: WebSocket, game_id: str):
             game = session.game
             board = session.board
         else:
-            game = await db.games.find_one({"_id": ObjectId(game_id)})
+            try:
+                game = await db.games.find_one({"_id": ObjectId(game_id)})
+            except Exception as e:
+                await websocket.send_json({"type": "error", "error": "game not found"})
+                return
             if not game:
                 await websocket.send_json({"type": "error", "error": "game not found"})
                 return
