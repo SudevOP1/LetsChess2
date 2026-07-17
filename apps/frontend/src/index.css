@@ -116,3 +116,18 @@
 .scrollbar-thin:hover::-webkit-scrollbar-thumb {
   background-color: var(--color-surface-hover);
 }
+
+/* piece move animation */
+@keyframes slidePiece {
+  from {
+    transform: translate(var(--start-x), var(--start-y));
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+
+/* piece move animation */
+.animate-move {
+  animation: slidePiece 0.3s ease-out forwards;
+}

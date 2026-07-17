@@ -264,6 +264,15 @@ const Board = ({
     return isCheck && turn === "b";
   };
 
+  const lastMove = uciMoves.length > 0 ? uciMoves[uciMoves.length - 1] : null;
+  let animateFrom = null;
+  if (lastMove) {
+    const fromIndices = getBoardIndices(lastMove.slice(0, 2));
+    const toIndices = getBoardIndices(lastMove.slice(2, 4));
+    animateFrom = { from: fromIndices, to: toIndices };
+  }
+  const sign = inverted ? -1 : 1;
+
   return (
     <div
       className={`flex items-center justify-center w-full h-full
@@ -310,22 +319,40 @@ const Board = ({
                 )}
 
                 {/* piece image */}
-                {pieceCharacter !== "" && (
-                  <img
-                    src={pieceImgs[pieceCharacter]}
-                    alt={pieceCharacter}
-                    className={`w-full h-full object-contain z-20
-                      ${isSelfPiece(pieceCharacter) && !isLegalMove(rankIndex, fileIndex) ? "cursor-grab active:cursor-grabbing touch-none" : ""}
-                      ${draggingPiece && draggingPiece.fromRankIndex === rankIndex && draggingPiece.fromFileIndex === fileIndex ? "opacity-50" : ""}
-                      ${isLegalMove(rankIndex, fileIndex) && "pointer-events-none"}
-                    `}
-                    draggable={false}
-                    onPointerDown={(e) => handlePointerDown(e, rankIndex, fileIndex)}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
-                  />
-                )}
+                {pieceCharacter !== "" &&
+                  (() => {
+                    const isLastMoveDestination =
+                      animateFrom && animateFrom.to.rankIndex === rankIndex && animateFrom.to.fileIndex === fileIndex;
+                    const shouldAnimate = isLastMoveDestination && !isSelfPiece(pieceCharacter);
+                    const xOffset = shouldAnimate ? (animateFrom.from.fileIndex - animateFrom.to.fileIndex) * sign * 100 : 0;
+                    const yOffset = shouldAnimate ? (animateFrom.from.rankIndex - animateFrom.to.rankIndex) * sign * 100 : 0;
+
+                    return (
+                      <img
+                        src={pieceImgs[pieceCharacter]}
+                        alt={pieceCharacter}
+                        className={`w-full h-full object-contain z-20
+                        ${isSelfPiece(pieceCharacter) && !isLegalMove(rankIndex, fileIndex) ? "cursor-grab active:cursor-grabbing touch-none" : ""}
+                        ${draggingPiece && draggingPiece.fromRankIndex === rankIndex && draggingPiece.fromFileIndex === fileIndex ? "opacity-50" : ""}
+                        ${isLegalMove(rankIndex, fileIndex) && "pointer-events-none"}
+                        ${shouldAnimate ? "animate-move" : ""}
+                      `}
+                        style={
+                          shouldAnimate
+                            ? {
+                                "--start-x": `${xOffset}%`,
+                                "--start-y": `${yOffset}%`,
+                              }
+                            : {}
+                        }
+                        draggable={false}
+                        onPointerDown={(e) => handlePointerDown(e, rankIndex, fileIndex)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                      />
+                    );
+                  })()}
 
                 {/* crown icon above winner king */}
                 {isGameOver && ((winner === "w" && pieceCharacter === "K") || (winner === "b" && pieceCharacter === "k")) && (
