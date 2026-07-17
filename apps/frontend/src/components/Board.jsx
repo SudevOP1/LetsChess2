@@ -291,6 +291,11 @@ const Board = ({
               onClick={() => handleClickAt(rankIndex, fileIndex)}
             >
               <>
+                {/* previous move */}
+                {uciMoves.length > 0 && uciMoves[uciMoves.length - 1].includes(getUciSquare(rankIndex, fileIndex)) && (
+                  <div className="absolute top-0 left-0 z-10 w-full h-full border-4 border-yellow-400" />
+                )}
+
                 {/* legal move with selected piece */}
                 {isLegalMove(rankIndex, fileIndex) && (
                   <div
