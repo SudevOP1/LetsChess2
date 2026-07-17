@@ -13,6 +13,7 @@ import { useAuthContext } from "../context/AuthContext";
 import { useToastContext } from "../context/ToastContext";
 import Button from "../components/ui/Button";
 import Board from "../components/Board";
+import { Chess } from "chess.js";
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -43,6 +44,7 @@ const GamePage = () => {
   const [showGameOverOverlay, setShowGameOverOverlay] = useState(false);
   const [showResignPrompt, setShowResignPrompt] = useState(false);
   const resignPromptRef = useRef(null);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(-1); // -1 means viewing latest move
 
   // sounds
   const move_sound = new Audio(move);
@@ -305,6 +307,8 @@ const GamePage = () => {
         if (msg?.data?.is_game_over) {
           setShowGameOverOverlay(true);
         }
+
+        setCurrentMoveIndex(-1);
         break;
       }
 
@@ -323,6 +327,8 @@ const GamePage = () => {
 
         // play sound
         playMoveSound(msg);
+
+        setCurrentMoveIndex(-1);
 
         break;
       }
@@ -410,6 +416,54 @@ const GamePage = () => {
       setShowResignPrompt(false);
     }
   };
+
+  const handlePrevMove = () => {
+    const currentIndex = currentMoveIndex === -1 ? uciMoves.length : currentMoveIndex;
+    if (currentIndex > 0) {
+      setCurrentMoveIndex(currentIndex - 1);
+      playMoveSound({ san_moves: [sanMoves[currentIndex - 1]] });
+    }
+  };
+
+  const handleNextMove = () => {
+    // already at latest
+    if (currentMoveIndex === -1) {
+      return;
+    }
+
+    const nextIndex = currentMoveIndex + 1;
+    if (nextIndex >= uciMoves.length) {
+      setCurrentMoveIndex(-1);
+      playMoveSound({ san_moves: [sanMoves[sanMoves.length - 1]] });
+    } else {
+      setCurrentMoveIndex(nextIndex);
+      playMoveSound({ san_moves: [sanMoves[currentMoveIndex]] });
+    }
+  };
+
+  const getHistoryFen = () => {
+    if (currentMoveIndex === uciMoves.length || currentMoveIndex === -1) {
+      return fenString;
+    }
+    try {
+      const chess = new Chess();
+      for (let i = 0; i < currentMoveIndex; i++) {
+        const move = uciMoves[i];
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        const promotion = move.length > 4 ? move[4] : undefined;
+        chess.move({ from, to, promotion });
+      }
+      return chess.fen();
+    } catch (e) {
+      console.error("Error generating history fen:", e);
+      return fenString;
+    }
+  };
+
+  const displayFen = getHistoryFen();
+  const displayUciMoves = currentMoveIndex === -1 ? uciMoves : uciMoves.slice(0, currentMoveIndex);
+  const displayLegalMoves = currentMoveIndex === -1 ? legalMoves : [];
 
   return (
     <>
@@ -522,14 +576,15 @@ const GamePage = () => {
             <Board
               selfColor={selfColor}
               inverted={getIsUserParticipant() && selfColor === "b"}
-              fenString={fenString}
-              uciMoves={uciMoves}
-              legalMoves={legalMoves}
-              isCheck={isCheck}
+              fenString={displayFen}
+              uciMoves={displayUciMoves}
+              legalMoves={displayLegalMoves}
+              isCheck={isCheck && currentMoveIndex === -1}
               turn={turn}
               makeMove={makeMove}
               isGameOver={isGameOver}
               winner={winner}
+              isViewingHistory={currentMoveIndex !== -1}
               className="h-full max-h-[70vh] md:max-h-none aspect-square"
             />
           </div>
@@ -560,10 +615,10 @@ const GamePage = () => {
             <div className="lg:sticky lg:top-0 lg:left-0 flex flex-row items-center justify-between p-3 bg-background/40 backdrop-blur-lg border-y lg:border-t-transparent border-surface-hover lg:rounded-t-md">
               <span className="font-bold">Moves</span>
               <div className="flex flex-row items-center justify-center gap-2">
-                <Button size="icon" variant="outline" className="rounded-full">
+                <Button size="icon" variant="outline" className="rounded-full" onClick={() => handlePrevMove()}>
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
-                <Button size="icon" variant="outline" className="rounded-full">
+                <Button size="icon" variant="outline" className="rounded-full" onClick={() => handleNextMove()}>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -575,25 +630,26 @@ const GamePage = () => {
                 <div
                   key={n}
                   className={`flex flex-row justify-between px-2 py-1 w-full text-sm md:text-lg rounded
-                ${n % 2 === 0 ? "bg-background/40" : ""}`}
+                    ${n % 2 === 0 ? "bg-background/40" : ""}`}
                 >
-                  <div
-                    className={`flex-1
-                  ${n === getMovePairs(sanMoves).length - 1 ? "text-text-strong font-semibold" : "text-text-weak"}`}
-                  >
-                    {n + 1}.
+                  <div className={"flex-1 text-text-weak"}>{n + 1}.</div>
+                  <div className="flex-1">
+                    <div
+                      onClick={() => setCurrentMoveIndex(n * 2 + 1)}
+                      className={`w-fit px-2 text-text cursor-pointer hover:bg-surface-hover rounded
+                        ${(n * 2 + 1 === currentMoveIndex || (currentMoveIndex === -1 && n * 2 + 1 === sanMoves.length)) && "text-text-strong font-semibold"}`}
+                    >
+                      {nthMove[0]}
+                    </div>
                   </div>
-                  <div
-                    className={`flex-1 text-text
-                  ${n === getMovePairs(sanMoves).length - 1 && "text-text-strong font-semibold"}`}
-                  >
-                    {nthMove[0]}
-                  </div>
-                  <div
-                    className={`flex-1 text-text
-                  ${n === getMovePairs(sanMoves).length - 1 && "text-text-strong font-semibold"}`}
-                  >
-                    {nthMove[1] ? nthMove[1] : ""}
+                  <div className="flex-1">
+                    <div
+                      onClick={() => setCurrentMoveIndex(n * 2 + 2)}
+                      className={`w-fit px-2 text-text cursor-pointer hover:bg-surface-hover rounded
+                        ${(n * 2 + 2 === currentMoveIndex || (currentMoveIndex === -1 && n * 2 + 2 === sanMoves.length)) && "text-text-strong font-semibold"}`}
+                    >
+                      {nthMove[1] ? nthMove[1] : ""}
+                    </div>
                   </div>
                 </div>
               ))}

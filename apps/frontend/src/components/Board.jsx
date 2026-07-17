@@ -83,12 +83,27 @@ const Board = ({
   makeMove,
   isGameOver = false,
   winner = null,
+  isViewingHistory = false,
 }) => {
   const [piecePositions, setPiecePositions] = useState(getPiecePositions(fenString));
   const [selectedPiece, setSelectedPiece] = useState(null);
   const [draggingPiece, setDraggingPiece] = useState(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [pieceSize, setPieceSize] = useState({ width: 0, height: 0 });
+
+  const [prevUciMoves, setPrevUciMoves] = useState(uciMoves);
+  const [animationData, setAnimationData] = useState(null);
+
+  if (uciMoves !== prevUciMoves) {
+    setPrevUciMoves(uciMoves);
+    if (uciMoves.length === prevUciMoves.length + 1) {
+      setAnimationData({ uci: uciMoves[uciMoves.length - 1], reverse: false });
+    } else if (uciMoves.length === prevUciMoves.length - 1) {
+      setAnimationData({ uci: prevUciMoves[prevUciMoves.length - 1], reverse: true });
+    } else {
+      setAnimationData(null);
+    }
+  }
 
   const theme = {
     light: "bg-[#D4DFE5]",
@@ -265,11 +280,11 @@ const Board = ({
   };
 
   const lastMove = uciMoves.length > 0 ? uciMoves[uciMoves.length - 1] : null;
-  let animateFrom = null;
-  if (lastMove) {
-    const fromIndices = getBoardIndices(lastMove.slice(0, 2));
-    const toIndices = getBoardIndices(lastMove.slice(2, 4));
-    animateFrom = { from: fromIndices, to: toIndices };
+  let animateCoords = null;
+  if (animationData) {
+    const fromIndices = getBoardIndices(animationData.uci.slice(0, 2));
+    const toIndices = getBoardIndices(animationData.uci.slice(2, 4));
+    animateCoords = { from: fromIndices, to: toIndices, reverse: animationData.reverse };
   }
   const sign = inverted ? -1 : 1;
 
@@ -321,11 +336,25 @@ const Board = ({
                 {/* piece image */}
                 {pieceCharacter !== "" &&
                   (() => {
-                    const isLastMoveDestination =
-                      animateFrom && animateFrom.to.rankIndex === rankIndex && animateFrom.to.fileIndex === fileIndex;
-                    const shouldAnimate = isLastMoveDestination && !isSelfPiece(pieceCharacter);
-                    const xOffset = shouldAnimate ? (animateFrom.from.fileIndex - animateFrom.to.fileIndex) * sign * 100 : 0;
-                    const yOffset = shouldAnimate ? (animateFrom.from.rankIndex - animateFrom.to.rankIndex) * sign * 100 : 0;
+                    const isDestination =
+                      animateCoords && animateCoords.to.rankIndex === rankIndex && animateCoords.to.fileIndex === fileIndex;
+                    const isOrigin =
+                      animateCoords && animateCoords.from.rankIndex === rankIndex && animateCoords.from.fileIndex === fileIndex;
+
+                    const shouldAnimate =
+                      (animateCoords &&
+                        !animateCoords.reverse &&
+                        isDestination &&
+                        (isViewingHistory || !isSelfPiece(pieceCharacter))) ||
+                      (animateCoords && animateCoords.reverse && isOrigin);
+
+                    const animateStartX = animateCoords?.reverse ? animateCoords.to.fileIndex : animateCoords?.from.fileIndex;
+                    const animateStartY = animateCoords?.reverse ? animateCoords.to.rankIndex : animateCoords?.from.rankIndex;
+                    const animateEndX = animateCoords?.reverse ? animateCoords.from.fileIndex : animateCoords?.to.fileIndex;
+                    const animateEndY = animateCoords?.reverse ? animateCoords.from.rankIndex : animateCoords?.to.rankIndex;
+
+                    const xOffset = shouldAnimate ? (animateStartX - animateEndX) * sign * 100 : 0;
+                    const yOffset = shouldAnimate ? (animateStartY - animateEndY) * sign * 100 : 0;
 
                     return (
                       <img
