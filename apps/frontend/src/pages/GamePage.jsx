@@ -441,6 +441,38 @@ const GamePage = () => {
     }
   };
 
+  const handleSetCurrentMoveIndex = (moveIndex) => {
+    setCurrentMoveIndex(moveIndex);
+
+    // play sound
+    if (moveIndex === -1) {
+      playMoveSound({ san_moves: [sanMoves[sanMoves.length - 1]] });
+    } else {
+      playMoveSound({ san_moves: [sanMoves[moveIndex]] });
+    }
+  };
+
+  // keyboard input for arrow keys
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (debug) console.log("key press detected:", event.key);
+      if (event.key === "ArrowRight") {
+        handleNextMove();
+      }
+      if (event.key === "ArrowLeft") {
+        handlePrevMove();
+      }
+    };
+
+    // Add the listener when the component mounts
+    window.addEventListener("keydown", handleKeyDown);
+
+    // Clean up the listener when the component unmounts to prevent memory leaks
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleNextMove, handlePrevMove]);
+
   const getHistoryFen = () => {
     if (currentMoveIndex === uciMoves.length || currentMoveIndex === -1) {
       return fenString;
@@ -635,7 +667,7 @@ const GamePage = () => {
                   <div className={"flex-1 text-text-weak"}>{n + 1}.</div>
                   <div className="flex-1">
                     <div
-                      onClick={() => setCurrentMoveIndex(n * 2 + 1)}
+                      onClick={() => handleSetCurrentMoveIndex(n * 2 + 1)}
                       className={`w-fit px-2 text-text cursor-pointer hover:bg-surface-hover rounded
                         ${(n * 2 + 1 === currentMoveIndex || (currentMoveIndex === -1 && n * 2 + 1 === sanMoves.length)) && "text-text-strong font-semibold"}`}
                     >
@@ -644,7 +676,7 @@ const GamePage = () => {
                   </div>
                   <div className="flex-1">
                     <div
-                      onClick={() => setCurrentMoveIndex(n * 2 + 2)}
+                      onClick={() => handleSetCurrentMoveIndex(n * 2 + 2)}
                       className={`w-fit px-2 text-text cursor-pointer hover:bg-surface-hover rounded
                         ${(n * 2 + 2 === currentMoveIndex || (currentMoveIndex === -1 && n * 2 + 2 === sanMoves.length)) && "text-text-strong font-semibold"}`}
                     >

@@ -129,5 +129,5 @@
 
 /* piece move animation */
 .animate-move {
-  animation: slidePiece 0.3s ease-out forwards;
+  animation: slidePiece 0.3s ease-in-out forwards;
 }
