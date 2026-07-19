@@ -58,8 +58,54 @@ def get_game_data(board: Board, game: dict | None = None) -> dict:
         "uci_moves": uci_moves,
         "legal_moves": [move.uci() for move in board.legal_moves],
         "is_check": board.is_check(),
-        "is_game_over": board.is_game_over() or (game is not None and game.get("status") == "gameover"),
+        "is_game_over": board.is_game_over()
+        or (game is not None and game.get("status") == "gameover"),
         "turn": "w" if board.turn else "b",
         "result": result,
         "winner": winner,
     }
+
+
+def get_new_elo(
+    elo_w: int,
+    elo_b: int,
+    result: str,
+    winner: str | None = None,
+) -> tuple[int, int]:
+
+    K = 32
+
+    # calculate expected scores
+    exp_w = 1 / (1 + 10 ** ((elo_b - elo_w) / 400))
+    exp_b = 1 / (1 + 10 ** ((elo_w - elo_b) / 400))
+
+    # winner loser scenario
+    if result in ["checkmate", "resignation"]:
+        if winner == "w":
+            s_a = 1
+            s_b = 0
+        else:
+            s_a = 0
+            s_b = 1
+
+    # draw
+    elif result in [
+        "stalemate",
+        "insufficient_material",
+        "seventyfive_moves",
+        "fivefold_repetition",
+        "fifty_moves",
+        "threefold_repetition",
+    ]:
+        s_a = 0.5
+        s_b = 0.5
+
+    # invalid result
+    else:
+        raise ValueError(f"Invalid result: {result}")
+
+    # calculate new elo
+    new_elo_w = elo_w + K * (s_a - exp_w)
+    new_elo_b = elo_b + K * (s_b - exp_b)
+
+    return int(round(new_elo_w)), int(round(new_elo_b))

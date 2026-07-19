@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import wp from "../assets/pieces/neo/wp.png";
 import wb from "../assets/pieces/neo/wb.png";
@@ -72,7 +72,7 @@ const getPiecePositions = (fenString = "") => {
 };
 
 const Board = ({
-  fenString = "",
+  fenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   className = "",
   selfColor,
   inverted = false,
@@ -91,19 +91,20 @@ const Board = ({
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [pieceSize, setPieceSize] = useState({ width: 0, height: 0 });
 
-  const [prevUciMoves, setPrevUciMoves] = useState(uciMoves);
+  const prevUciMovesRef = useRef(uciMoves);
   const [animationData, setAnimationData] = useState(null);
 
-  if (uciMoves !== prevUciMoves) {
-    setPrevUciMoves(uciMoves);
-    if (uciMoves.length === prevUciMoves.length + 1) {
+  useEffect(() => {
+    const prev = prevUciMovesRef.current;
+    if (uciMoves.length === prev.length + 1) {
       setAnimationData({ uci: uciMoves[uciMoves.length - 1], reverse: false });
-    } else if (uciMoves.length === prevUciMoves.length - 1) {
-      setAnimationData({ uci: prevUciMoves[prevUciMoves.length - 1], reverse: true });
+    } else if (uciMoves.length === prev.length - 1) {
+      setAnimationData({ uci: prev[prev.length - 1], reverse: true });
     } else {
       setAnimationData(null);
     }
-  }
+    prevUciMovesRef.current = uciMoves;
+  }, [uciMoves.length]);
 
   const theme = {
     light: "bg-[#D4DFE5]",

@@ -27,6 +27,7 @@ const GamePage = () => {
   const [gameMetadata, setGameMetadata] = useState(null);
   const gameMetadataRef = useRef(null);
   const [selfColor, setSelfColor] = useState("w");
+  const [newElos, setNewElos] = useState({});
 
   // gamedata
   const [gameData, setGameData] = useState(null);
@@ -376,6 +377,10 @@ const GamePage = () => {
           result: msg?.result,
           winner: msg?.winner,
         });
+        setNewElos({
+          w: msg?.player1_elo,
+          b: msg?.player2_elo,
+        });
 
         // show game over overlay
         setShowGameOverOverlay(true);
@@ -551,6 +556,15 @@ const GamePage = () => {
                 <span className="text-xs font-bold truncate max-w-[90px] mt-1 text-text-strong">
                   {gameMetadata?.player1_username} {gameMetadata?.player1_username === username && "(You)"}
                 </span>
+                {newElos.w && (
+                  <span
+                    className={`mt-2 text-xl font-bold
+                      ${newElos.w - gameMetadata?.player1_elo > 0 ? "text-green-500" : "text-red-500"}`}
+                  >
+                    {newElos.w - gameMetadata?.player1_elo > 0 && "+"}
+                    {newElos.w - gameMetadata?.player1_elo}
+                  </span>
+                )}
               </div>
 
               <div className="text-xs font-bold text-text-weak px-1">vs</div>
@@ -566,6 +580,15 @@ const GamePage = () => {
                 <span className="text-xs font-bold truncate max-w-[90px] mt-1 text-text-strong">
                   {gameMetadata?.player2_username} {gameMetadata?.player2_username === username && "(You)"}
                 </span>
+                {newElos.b && (
+                  <span
+                    className={`mt-2 text-xl font-bold
+                      ${newElos.b - gameMetadata?.player2_elo > 0 ? "text-green-500" : "text-red-500"}`}
+                  >
+                    {newElos.b - gameMetadata?.player2_elo > 0 && "+"}
+                    {newElos.b - gameMetadata?.player2_elo}
+                  </span>
+                )}
               </div>
             </div>
 

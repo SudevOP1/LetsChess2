@@ -8,7 +8,7 @@ import asyncio
 
 from utils.auth import authenticate_websocket_user
 from utils.db import db
-from utils.helpers import get_game_data, get_game_metadata
+from utils.helpers import get_game_data, get_game_metadata, get_new_elo
 from utils import debug
 
 game_router = APIRouter()
@@ -349,6 +349,32 @@ async def play_game(websocket: WebSocket, game_id: str):
             await handle_game_over()
             return
 
+    async def handle_elo_update() -> tuple[int, int]:
+
+        game_metadata = await get_game_metadata(session.game)
+        player1_id = game_metadata.get("player1_id")
+        player2_id = game_metadata.get("player2_id")
+        player1_elo = game_metadata.get("player1_elo")
+        player2_elo = game_metadata.get("player2_elo")
+        result = game.get("result")
+        winner = game.get("winner", None)
+
+        elo_w, elo_b = get_new_elo(
+            elo_w=player1_elo,
+            elo_b=player2_elo,
+            result=result,
+            winner=winner,
+        )
+
+        await db.users.update_one(
+            {"_id": ObjectId(player1_id)}, {"$set": {"elo": elo_w}}
+        )
+        await db.users.update_one(
+            {"_id": ObjectId(player2_id)}, {"$set": {"elo": elo_b}}
+        )
+
+        return elo_w, elo_b
+
     async def handle_resign() -> None:
         if session is None:
             return
@@ -397,10 +423,18 @@ async def play_game(websocket: WebSocket, game_id: str):
             {"$set": {"status": "gameover", "result": result, "winner": winner}},
         )
 
-        # TODO: update users' elo
+        # update users' elo
+        new_elo_w, new_elo_b = await handle_elo_update()
 
         # broadcast gameover
-        await broadcast({"type": "game_over", **game_data})
+        await broadcast(
+            {
+                "type": "game_over",
+                **game_data,
+                "player1_elo": new_elo_w,
+                "player2_elo": new_elo_b,
+            }
+        )
 
         return
 
