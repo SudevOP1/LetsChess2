@@ -311,8 +311,13 @@ const Board = ({
               data-rank={rankIndex}
               data-file={fileIndex}
               className={`flex items-center justify-center w-full h-full max-h-[calc(min(64vw, 8vh))] lg:max-h-none relative group
-                ${(rankIndex + fileIndex) % 2 === 0 ? theme.light : theme.dark}
-                ${((pieceCharacter === "K" && isWhiteKingInCheck()) || (pieceCharacter === "k" && isBlackKingInCheck())) && "bg-red-500"}
+                ${
+                  (pieceCharacter === "K" && isWhiteKingInCheck()) || (pieceCharacter === "k" && isBlackKingInCheck())
+                    ? "bg-red-500"
+                    : (rankIndex + fileIndex) % 2 === 0
+                      ? theme.light
+                      : theme.dark
+                }
               `}
               onClick={() => handleClickAt(rankIndex, fileIndex)}
             >
@@ -360,6 +365,7 @@ const Board = ({
 
                     return (
                       <img
+                        key={pieceCharacter}
                         src={pieceImgs[pieceCharacter]}
                         alt={pieceCharacter}
                         className={`w-full h-full object-contain z-20
