@@ -77,15 +77,16 @@ const Navbar = () => {
 
       {/* Mobile Menu View */}
       <div
-        className={`md:hidden absolute top-full left-0 w-full bg-background border-b border-slate-800
-          animate-mobile-menu ${mobileOpen ? "animate-mobile-menu-enter" : "animate-mobile-menu-exit"}`}
+        className={`md:hidden absolute top-[64px] h-[calc(100vh-64px)] left-0 w-full
+          bg-background border-b border-slate-800
+          ${mobileOpen ? "animate-mobile-menu" : "animate-mobile-menu-exit"}`}
       >
         <div className="max-w-6xl mx-auto p-8 flex flex-col gap-2">
           {Object.entries(navbarContents).map(
             ([name, value]) =>
               value.condition &&
               (value.type === "link" ? (
-                <Link to={value.to} key={name}>
+                <Link to={value.to} key={name} onClick={() => setMobileOpen(false)}>
                   <Button variant={value.variant} className="w-full justify-start" size={value.size}>
                     {name}
                   </Button>
@@ -96,7 +97,10 @@ const Navbar = () => {
                   variant={value.variant}
                   className="w-full justify-start"
                   size={value.size}
-                  onClick={value.onClick}
+                  onClick={() => {
+                    value.onClick();
+                    setMobileOpen(false);
+                  }}
                 >
                   {name}
                 </Button>
