@@ -5,6 +5,7 @@ import { Search, Trophy } from "lucide-react";
 import { useAuthContext } from "../context/AuthContext";
 import { useToastContext } from "../context/ToastContext";
 import { useApiContext } from "../context/ApiContext";
+import Logger from "../services/logger.js";
 import Button from "../components/ui/Button";
 import Board from "../components/Board";
 import LoadingScreen from "../components/LoadingScreen";
@@ -19,14 +20,13 @@ const GamePage = () => {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState("idle"); // idle, searching
 
-  const debug = false;
   let wsRef = useRef(null);
   const fenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
   const fetchSelfData = async () => {
     const [success, data] = await fetchApi(`${backendUrl}/user/me`, "GET", null, setLoading);
     if (!success) {
-      console.error(data.error);
+      Logger.error(data.error);
       return;
     }
     setSelfData(data.me);
@@ -50,7 +50,7 @@ const GamePage = () => {
     try {
       ws.send(JSON.stringify({ type: "cancel" }));
     } catch (error) {
-      console.error(`error cancelling search: ${error.message}`);
+      Logger.error(`error cancelling search: ${error.message}`);
     }
 
     // close ws
@@ -66,7 +66,7 @@ const GamePage = () => {
           handleWsClose();
           logoutUser(false);
         } else {
-          console.error("error msg received from ws: ", msg.error);
+          Logger.error("error msg received from ws: ", msg.error);
           addToast("Something went wrong", "red", 5);
           handleWsClose();
         }
@@ -74,12 +74,12 @@ const GamePage = () => {
       }
 
       case "waiting": {
-        if (debug) console.log("added to matchmaking queue");
+        Logger.log("added to matchmaking queue");
         break;
       }
 
       case "found": {
-        if (debug) console.log("match found");
+        Logger.log("match found");
         addToast("Match found!", "green", 3);
         handleWsClose();
         navigate(`/game/${msg.game_id}`);
@@ -87,7 +87,7 @@ const GamePage = () => {
       }
 
       default: {
-        console.error("received msg with unknown type: ", msg);
+        Logger.error("received msg with unknown type: ", msg);
         addToast("Something went wrong", "red", 5);
         handleWsClose();
       }
@@ -114,30 +114,30 @@ const GamePage = () => {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      if (debug) console.log("ws connected");
+      Logger.log("ws connected");
       ws.send(JSON.stringify({ type: "access_token", access_token: accessToken }));
-      if (debug) console.log("sent access token");
+      Logger.log("sent access token");
     };
 
     ws.onmessage = (event) => {
       try {
         let msg = JSON.parse(event.data);
-        if (debug) console.log(`received msg: ${JSON.stringify(msg)}`);
+        Logger.log(`received msg: ${JSON.stringify(msg)}`);
         handleWsMsg(msg);
       } catch (e) {
-        console.error(`error parsing msg: ${e}`);
+        Logger.error(`error parsing msg: ${e}`);
         handleWsClose();
       }
     };
 
     ws.onerror = (error) => {
-      console.error(`ws connection error: ${error}`);
+      Logger.error(`ws connection error: ${error}`);
       addToast("Something went wrong", "red", 5);
       handleWsClose();
     };
 
     ws.onclose = (event) => {
-      if (debug) console.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
+      Logger.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
       handleWsClose();
     };
 

@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Ban, Flag, ArrowLeft, ArrowRight, Search, X, Crown } from "lucide-react";
+import { Chess } from "chess.js";
+
+import { useAuthContext } from "../context/AuthContext";
+import { useToastContext } from "../context/ToastContext";
+import Logger from "../services/logger.js";
+import Button from "../components/ui/Button";
+import Board from "../components/Board";
 
 import move from "../assets/sounds/move.mp3";
 import capture from "../assets/sounds/capture.mp3";
@@ -8,12 +15,6 @@ import promotion from "../assets/sounds/promotion.mp3";
 import check from "../assets/sounds/check.mp3";
 import castle from "../assets/sounds/castle.mp3";
 import gameover from "../assets/sounds/gameover.mp3";
-
-import { useAuthContext } from "../context/AuthContext";
-import { useToastContext } from "../context/ToastContext";
-import Button from "../components/ui/Button";
-import Board from "../components/Board";
-import { Chess } from "chess.js";
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -69,18 +70,18 @@ const GamePage = () => {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      if (debug) console.log("ws connected");
+      Logger.log("ws connected");
       ws.send(JSON.stringify({ type: "access_token", access_token: accessToken }));
-      if (debug) console.log("sent access token");
+      Logger.log("sent access token");
     };
 
     ws.onmessage = (event) => {
       try {
         let msg = JSON.parse(event.data);
-        if (debug) console.log(`received msg: ${JSON.stringify(msg)}`);
+        Logger.log(`received msg: ${JSON.stringify(msg)}`);
         handleWsMsg(msg);
       } catch (e) {
-        console.error(`error parsing msg: ${e}`);
+        Logger.error(`error parsing msg: ${e}`);
         // only clear ref if this is still the active webSocket
         if (wsRef.current === ws) {
           wsRef.current = null;
@@ -89,11 +90,11 @@ const GamePage = () => {
     };
 
     ws.onerror = (error) => {
-      console.error(`ws connection error: ${error}`);
+      Logger.error(`ws connection error: ${error}`);
     };
 
     ws.onclose = (event) => {
-      if (debug) console.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
+      Logger.log(`disconnected from ws (code: ${event.code}, reason: ${event.reason})`);
       // only clear ref if this is still the active webSocket
       if (wsRef.current === ws) {
         wsRef.current = null;
@@ -238,7 +239,7 @@ const GamePage = () => {
     soundToPlay.currentTime = 0;
     soundToPlay.play().catch((e) => {
       if (e.name !== "NotAllowedError") {
-        console.error("error playing sound:", e);
+        Logger.error("error playing sound:", e);
       }
     });
 
@@ -249,7 +250,7 @@ const GamePage = () => {
           gameover_sound.currentTime = 0;
           gameover_sound.play().catch((e) => {
             if (e.name !== "NotAllowedError") {
-              console.error("error playing sound:", e);
+              Logger.error("error playing sound:", e);
             }
           });
         }
@@ -274,7 +275,7 @@ const GamePage = () => {
           navigate("/find-game");
           handleWsClose();
         } else {
-          console.error("error msg received from ws: ", msg.error);
+          Logger.error("error msg received from ws: ", msg.error);
           addToast("Something went wrong", "red", 5);
           handleWsClose();
         }
@@ -349,7 +350,7 @@ const GamePage = () => {
         gameover_sound.currentTime = 0;
         gameover_sound.play().catch((e) => {
           if (e.name !== "NotAllowedError") {
-            console.error("error playing sound:", e);
+            Logger.error("error playing sound:", e);
           }
         });
         break;
@@ -392,13 +393,13 @@ const GamePage = () => {
       }
 
       default: {
-        console.error("received msg with unknown type: ", msg);
+        Logger.error("received msg with unknown type: ", msg);
       }
     }
   };
 
   const handleWsClose = () => {
-    if (debug) console.log("handleWsClose called");
+    Logger.log("handleWsClose called");
     if (wsRef.current) {
       if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
         wsRef.current.close();
@@ -410,14 +411,14 @@ const GamePage = () => {
   const makeMove = (uciMove) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "move", move: uciMove }));
-      if (debug) console.log("move sent:", uciMove);
+      Logger.log("move sent:", uciMove);
     }
   };
 
   const handleResign = () => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "resign" }));
-      if (debug) console.log("resign sent");
+      Logger.log("resign sent");
       setShowResignPrompt(false);
     }
   };
@@ -460,7 +461,7 @@ const GamePage = () => {
   // keyboard input for arrow keys
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (debug) console.log("key press detected:", event.key);
+      Logger.log("key press detected:", event.key);
       if (event.key === "ArrowRight") {
         handleNextMove();
       }
@@ -493,7 +494,7 @@ const GamePage = () => {
       }
       return chess.fen();
     } catch (e) {
-      console.error("Error generating history fen:", e);
+      Logger.error("Error generating history fen:", e);
       return fenString;
     }
   };

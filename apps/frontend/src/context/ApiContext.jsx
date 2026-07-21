@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 
 import { useToastContext } from "./ToastContext.jsx";
 import { useAuthContext } from "./AuthContext.jsx";
+import Logger from "../services/logger.js";
 
 const ApiContext = createContext();
 
@@ -61,7 +62,7 @@ export const ApiProvider = ({ children }) => {
       }
     } catch (err) {
       // handle network error
-      console.error("something went wrong: " + err);
+      Logger.error("something went wrong: " + err);
       addToast("Something went wrong", "red", 5);
       return [false, "Something went wrong"];
     } finally {

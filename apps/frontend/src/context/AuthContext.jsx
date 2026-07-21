@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
 import { useToastContext } from "./ToastContext.jsx";
+import Logger from "../services/logger.js";
 import LoadingScreen from "../components/LoadingScreen.jsx";
 
 const AuthContext = createContext();
@@ -62,7 +63,7 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error("Error decoding token:", error);
+        Logger.error("Error decoding token:", error);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("userId");
         localStorage.removeItem("username");
@@ -97,7 +98,7 @@ export const AuthProvider = ({ children }) => {
         addToast("Signup failed: " + data.error, "red", 5);
       }
     } catch (error) {
-      console.error("/auth/signup error:", error);
+      Logger.error("/auth/signup error:", error);
       addToast("Something went wrong. please try again", "red", 5);
     } finally {
       setLoading(false);
@@ -140,7 +141,7 @@ export const AuthProvider = ({ children }) => {
         addToast("Login failed: " + (data.error || "invalid credentials"), "red", 5);
       }
     } catch (error) {
-      console.error("/auth/login error:", error);
+      Logger.error("/auth/login error:", error);
       addToast("Something went wrong. please try again", "red", 5);
     } finally {
       setLoading(false);

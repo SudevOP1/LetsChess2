@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
+import Logger from "../services/logger.js";
 import wp from "../assets/pieces/neo/wp.png";
 import wb from "../assets/pieces/neo/wb.png";
 import wn from "../assets/pieces/neo/wn.png";
@@ -67,7 +68,7 @@ const getPiecePositions = (fenString = "") => {
 
     return positions;
   } catch (e) {
-    console.error(`couldnt extract piecePositions from fen string: ${fenString}\nerror: ${e}`);
+    Logger.error(`couldnt extract piecePositions from fen string: ${fenString}\nerror: ${e}`);
   }
 };
 
