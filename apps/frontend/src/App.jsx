@@ -15,7 +15,7 @@ import GamePage from "./pages/GamePage.jsx";
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/LetsChess2/">
       <ToastProvider>
         <AuthProvider>
           <ApiProvider>

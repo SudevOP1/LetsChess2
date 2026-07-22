@@ -17,9 +17,10 @@ export const useAuthContext = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const backendUrl = "http://127.0.0.1:8000";
-  const wsUrl = "ws://127.0.0.1:8000";
-  const frontendUrl = "http://localhost:5173";
+  const backendUrl = window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : process.env.REACT_APP_BACKEND_URL;
+  const wsUrl = window.location.hostname === "localhost" ? "ws://127.0.0.1:8000" : process.env.REACT_APP_WS_URL;
+  const frontendUrl =
+    window.location.hostname === "localhost" ? "http://localhost:5173" : "https://sudevop1.github.io/LetsChess2";
   const navigate = useNavigate();
   const { addToast } = useToastContext();
 
