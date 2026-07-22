@@ -131,3 +131,14 @@
 .animate-move {
   animation: slidePiece 0.3s ease-in-out forwards;
 }
+
+@keyframes active-game {
+  75%, 100% {
+    transform: scaleX(1.05) scaleY(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-active-game {
+  animation: active-game 1s ease-out forwards infinite;
+}

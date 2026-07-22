@@ -1,17 +1,112 @@
 from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from bson import ObjectId
 from chess import Board, Move  # pyrefly: ignore [missing-import]
 import traceback
 import asyncio
 
-from utils.auth import authenticate_websocket_user
+from utils.auth import authenticate_websocket_user, get_current_user
 from utils.db import db
 from utils.helpers import get_game_data, get_game_metadata, get_new_elo
 from utils import debug
 
 game_router = APIRouter()
+
+
+@game_router.get("/recent")
+async def recent_games(auth_result=Depends(get_current_user)):
+    try:
+        auth_success, current_user = auth_result
+        if not auth_success:
+            return {"success": False, "error": current_user, "status_code": 401}
+
+        user_oid = ObjectId(current_user["id"])
+
+        # Query recent games for this user (where they are player1 or player2)
+        cursor = (
+            db.games.find({"$or": [{"player1_id": user_oid}, {"player2_id": user_oid}]})
+            .sort("created_at", -1)
+            .limit(10)
+        )
+
+        games = await cursor.to_list(length=10)
+
+        resolved_games = []
+        for g in games:
+            metadata = await get_game_metadata(g)
+            moves_count = len(g.get("moves", "").split())
+            resolved_games.append(
+                {
+                    "id": str(g["_id"]),
+                    "player1_id": metadata["player1_id"],
+                    "player2_id": metadata["player2_id"],
+                    "player1_username": metadata["player1_username"],
+                    "player2_username": metadata["player2_username"],
+                    "player1_elo": metadata["player1_elo"],
+                    "player2_elo": metadata["player2_elo"],
+                    "started_at": metadata["started_at"],
+                    "status": g.get("status"),
+                    "result": g.get("result"),
+                    "winner": g.get("winner"),
+                    "moves_count": moves_count,
+                }
+            )
+
+        # Calculate statistics
+        total_games = await db.games.count_documents(
+            {"$or": [{"player1_id": user_oid}, {"player2_id": user_oid}]}
+        )
+
+        wins = await db.games.count_documents(
+            {
+                "$or": [
+                    {"player1_id": user_oid, "winner": "w"},
+                    {"player2_id": user_oid, "winner": "b"},
+                ]
+            }
+        )
+
+        losses = await db.games.count_documents(
+            {
+                "$or": [
+                    {"player1_id": user_oid, "winner": "b"},
+                    {"player2_id": user_oid, "winner": "w"},
+                ]
+            }
+        )
+
+        draws = await db.games.count_documents(
+            {
+                "$or": [{"player1_id": user_oid}, {"player2_id": user_oid}],
+                "status": "gameover",
+                "winner": None,
+            }
+        )
+
+        return {
+            "success": True,
+            "games": resolved_games,
+            "stats": {
+                "total_games": total_games,
+                "wins": wins,
+                "losses": losses,
+                "draws": draws,
+                "elo": current_user.get("elo", 500),
+            },
+        }
+    except Exception as e:
+        debug.error(
+            "500 GET /game/recent",
+            traceback.format_exc(),
+            api_route=True,
+        )
+        return {
+            "success": False,
+            "error": f"something went wrong: {str(e)}",
+            "status_code": 500,
+        }
+
 
 # matchmaking
 max_search_range = 1000
