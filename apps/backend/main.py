@@ -42,7 +42,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     allow_origins=[
-        "http://localhost:5173",
+        "http://localhost:5173",  # normal run
+        "http://localhost:4173",  # preview mode
+        "https://sudevop1.github.io",  # deployed
     ],
 )
 
