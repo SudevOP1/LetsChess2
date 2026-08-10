@@ -154,7 +154,7 @@ const GamePage = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 w-screen h-full min-h-screen p-3 md:max-w-4xl lg:max-w-6xl mx-auto">
+    <div className="flex flex-col lg:flex-row gap-4 w-screen h-full min-h-[40%] md:min-h-screen p-3 md:max-w-4xl lg:max-w-6xl mx-auto">
       {/* left panel */}
       <div className="hidden lg:flex flex-col gap-4 h-full">
         {/* opponent details */}
@@ -197,7 +197,7 @@ const GamePage = () => {
       </div>
 
       {/* right panel */}
-      <div className="flex flex-col min-w-60 w-full h-[calc(100vh-24px)] bg-surface border border-surface-hover rounded-md overflow-hidden">
+      <div className="flex flex-col min-w-60 w-full md:h-[calc(100vh-24px)] bg-surface border border-surface-hover rounded-md overflow-hidden">
         {/* header */}
         <div className="p-4 bg-background/40 font-bold text-text-strong border-b border-surface-hover lg:rounded-t-md">
           Matchmaking
@@ -205,7 +205,7 @@ const GamePage = () => {
 
         {/* content */}
         <div className="flex-1 flex flex-col justify-between p-6">
-          <div className="flex-1 flex flex-col items-center justify-center text-center my-auto space-y-6">
+          <div className="flex-1 flex flex-col items-center justify-center text-center my-30 md:my-auto space-y-6">
             {state === "idle" ? (
               <div className="flex flex-col items-center space-y-4 w-full">
                 <div className="w-16 h-16 rounded-full bg-surface-hover border border-surface-hover flex items-center justify-center text-primary animate-bounce duration-1000">
