@@ -46,6 +46,7 @@ const GamePage = () => {
   const [showGameOverOverlay, setShowGameOverOverlay] = useState(false);
   const [showResignPrompt, setShowResignPrompt] = useState(false);
   const resignPromptRef = useRef(null);
+  const [drawOfferState, setDrawOfferState] = useState(null); // null | "sent" | "received"
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1); // -1 means viewing latest move
 
   // sounds
@@ -388,6 +389,43 @@ const GamePage = () => {
         break;
       }
 
+      case "draw_offer_sent": {
+        setDrawOfferState("sent");
+        break;
+      }
+
+      case "draw_offered": {
+        setDrawOfferState("received");
+        break;
+      }
+
+      case "draw_declined": {
+        setDrawOfferState(null);
+        break;
+      }
+
+      case "draw": {
+        setGameData(msg);
+        setFenString(msg?.fen);
+        setSanMoves(msg?.san_moves);
+        setUciMoves(msg?.uci_moves);
+        setLegalMoves(msg?.legal_moves);
+        setIsCheck(msg?.is_check);
+        setIsGameOver(msg?.is_game_over);
+        setTurn(msg?.turn);
+        setResult(msg?.result);
+        setWinner(msg?.winner);
+        setDrawOfferState(null);
+
+        gameover_sound.currentTime = 0;
+        gameover_sound.play().catch((e) => {
+          if (e.name !== "NotAllowedError") {
+            Logger.error("error playing sound:", e);
+          }
+        });
+        break;
+      }
+
       case "invalid_message": {
         break;
       }
@@ -420,6 +458,27 @@ const GamePage = () => {
       wsRef.current.send(JSON.stringify({ type: "resign" }));
       Logger.log("resign sent");
       setShowResignPrompt(false);
+    }
+  };
+
+  const handleOfferDraw = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "offer_draw" }));
+      Logger.log("draw offer sent");
+    }
+  };
+
+  const handleAcceptDraw = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "accept_draw" }));
+      Logger.log("draw accept sent");
+    }
+  };
+
+  const handleDeclineDraw = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "decline_draw" }));
+      Logger.log("draw decline sent");
     }
   };
 
@@ -715,53 +774,87 @@ const GamePage = () => {
           {/* buttons */}
           {!isGameOver ? (
             <div className="shrink-0 relative flex flex-row gap-3 p-3 lg:bg-background/40 lg:border-t border-surface-hover">
-              <div className="flex-1">
-                <Button
-                  variant="outline"
-                  disabled={showResignPrompt}
-                  className="w-full text-text bg-surface hover:text-yellow-500 hover:bg-yellow-500/10 hover:border-yellow-500/50
-                    active:text-yellow-500 active:bg-yellow-500/30 active:border-yellow-500/50 disabled:opacity-20"
-                >
-                  <Flag className="w-4 h-4 mr-2" />
-                  <span>Draw</span>
-                </Button>
-              </div>
-
-              <div className="flex-1">
-                {/* resign prompt overlay */}
-                {showResignPrompt && (
-                  <div
-                    ref={resignPromptRef}
-                    className="absolute t-0 l-0 -translate-x-[calc(100%-6px)] -translate-y-[calc(100%+24px)] p-4 w-1/2
-                      flex flex-col gap-3 bg-surface border border-surface-hover rounded-md"
-                  >
-                    <p className="text-text-strong">Are you sure you want to resign?</p>
-                    <div className="flex flex-row gap-3">
-                      <Button variant="outline" onClick={() => setShowResignPrompt(false)} className="flex-1">
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="primary"
-                        onClick={() => handleResign()}
-                        className="flex-1 text-white bg-red-600 hover:bg-red-700 active:bg-red-900"
-                      >
-                        Resign
-                      </Button>
-                    </div>
+              {drawOfferState === "received" ? (
+                <>
+                  <div className="flex-1 flex items-center">
+                    <span className="text-sm font-semibold text-text-strong">Opponent offers a draw</span>
                   </div>
-                )}
-                {/* resign button */}
-                <Button
-                  variant="outline"
-                  disabled={showResignPrompt}
-                  onClick={() => setShowResignPrompt(true)}
-                  className="w-full text-text bg-surface hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50
-                    active:text-red-500 active:bg-red-500/30 active:border-red-500/50 disabled:opacity-20"
-                >
-                  <Ban className="w-4 h-4 mr-2" />
-                  <span>Resign</span>
-                </Button>
-              </div>
+                  <div className="flex flex-row gap-3">
+                    <Button variant="outline" onClick={() => handleDeclineDraw()} className="flex-1">
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => handleAcceptDraw()}
+                      className="flex-1 text-white bg-green-600 hover:bg-green-700 active:bg-green-900"
+                    >
+                      Accept
+                    </Button>
+                  </div>
+                </>
+              ) : drawOfferState === "sent" ? (
+                <>
+                  <div className="flex-1 flex items-center">
+                    <span className="text-sm font-semibold text-text-weak">Draw offer sent</span>
+                  </div>
+                  <div className="flex-1">
+                    <Button variant="outline" onClick={() => handleDeclineDraw()} className="w-full">
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1">
+                    <Button
+                      variant="outline"
+                      disabled={showResignPrompt}
+                      onClick={() => handleOfferDraw()}
+                      className="w-full text-text bg-surface hover:text-yellow-500 hover:bg-yellow-500/10 hover:border-yellow-500/50
+                        active:text-yellow-500 active:bg-yellow-500/30 active:border-yellow-500/50 disabled:opacity-20"
+                    >
+                      <Flag className="w-4 h-4 mr-2" />
+                      <span>Draw</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex-1">
+                    {/* resign prompt overlay */}
+                    {showResignPrompt && (
+                      <div
+                        ref={resignPromptRef}
+                        className="absolute t-0 l-0 -translate-x-[calc(100%-6px)] -translate-y-[calc(100%+24px)] p-4 w-1/2
+                          flex flex-col gap-3 bg-surface border border-surface-hover rounded-md"
+                      >
+                        <p className="text-text-strong">Are you sure you want to resign?</p>
+                        <div className="flex flex-row gap-3">
+                          <Button variant="outline" onClick={() => setShowResignPrompt(false)} className="flex-1">
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="primary"
+                            onClick={() => handleResign()}
+                            className="flex-1 text-white bg-red-600 hover:bg-red-700 active:bg-red-900"
+                          >
+                            Resign
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {/* resign button */}
+                    <Button
+                      variant="outline"
+                      disabled={showResignPrompt}
+                      onClick={() => setShowResignPrompt(true)}
+                      className="w-full text-text bg-surface hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50
+                        active:text-red-500 active:bg-red-500/30 active:border-red-500/50 disabled:opacity-20"
+                    >
+                      <Ban className="w-4 h-4 mr-2" />
+                      <span>Resign</span>
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="shrink-0 flex flex-row gap-3 p-3 lg:bg-background">

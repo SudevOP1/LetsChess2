@@ -96,6 +96,7 @@ def get_new_elo(
         "fivefold_repetition",
         "fifty_moves",
         "threefold_repetition",
+        "draw_agreement",
     ]:
         s_a = 0.5
         s_b = 0.5

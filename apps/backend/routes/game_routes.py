@@ -121,6 +121,8 @@ class GameSession:
         for move in game.get("moves", "").split():
             self.board.push_san(move)
         self.connections: dict[str, WebSocket] = {}
+        # temp var - id of player who currently has open draw offer, cleared once resolved
+        self.draw_offered_by: Optional[str] = None
 
 
 game_sessions: dict[str, GameSession] = {}
@@ -389,6 +391,44 @@ async def play_game(websocket: WebSocket, game_id: str):
 
                 await handle_resign()
 
+            case "offer_draw":
+                if game.get("status") != "active":
+                    await send_to_player({"type": "error", "error": "game is inactive"})
+                    return
+
+                if current_user.get("id") not in [
+                    str(game.get("player1_id")),
+                    str(game.get("player2_id")),
+                ]:
+                    await send_to_player({"type": "error", "error": "not your game"})
+                    return
+
+                await handle_offer_draw()
+
+            case "accept_draw":
+                if game.get("status") != "active":
+                    await send_to_player({"type": "error", "error": "game is inactive"})
+                    return
+
+                if current_user.get("id") not in [
+                    str(game.get("player1_id")),
+                    str(game.get("player2_id")),
+                ]:
+                    await send_to_player({"type": "error", "error": "not your game"})
+                    return
+
+                await handle_accept_draw()
+
+            case "decline_draw":
+                if current_user.get("id") not in [
+                    str(game.get("player1_id")),
+                    str(game.get("player2_id")),
+                ]:
+                    await send_to_player({"type": "error", "error": "not your game"})
+                    return
+
+                await handle_decline_draw()
+
             case _:
                 await send_to_player({"type": "invalid_message"})
 
@@ -490,6 +530,67 @@ async def play_game(websocket: WebSocket, game_id: str):
         await broadcast(
             {
                 "type": "resign",
+                **get_game_data(board, game),
+            }
+        )
+
+        # game over
+        await handle_game_over()
+        return
+
+    async def handle_offer_draw() -> None:
+        if session is None:
+            return
+
+        if session.draw_offered_by is not None:
+            await send_to_player({"type": "error", "error": "draw already offered"})
+            return
+
+        # store offer in temp session var
+        session.draw_offered_by = current_user.get("id")
+
+        await send_to_player({"type": "draw_offer_sent"})
+        await send_to_opponent({"type": "draw_offered"})
+        return
+
+    async def handle_decline_draw() -> None:
+        if session is None:
+            return
+
+        if session.draw_offered_by is None:
+            return
+
+        # clear temp offer var
+        session.draw_offered_by = None
+
+        await broadcast({"type": "draw_declined"})
+        return
+
+    async def handle_accept_draw() -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
+
+        if (
+            session.draw_offered_by is None
+            or session.draw_offered_by == current_user.get("id")
+        ):
+            await send_to_player({"type": "error", "error": "no draw offer to accept"})
+            return
+
+        # clear temp offer var
+        session.draw_offered_by = None
+
+        # update game
+        game["status"] = "gameover"
+        game["result"] = "draw_agreement"
+        game["winner"] = None
+
+        # broadcast draw agreement
+        await broadcast(
+            {
+                "type": "draw",
                 **get_game_data(board, game),
             }
         )
@@ -618,5 +719,13 @@ async def play_game(websocket: WebSocket, game_id: str):
         if game_id in game_sessions:
             if current_user:
                 session.connections.pop(current_user.get("id"), None)
+
+                # clear stale draw offer + tell opponent, since offerer left
+                if session.draw_offered_by == current_user.get("id"):
+                    session.draw_offered_by = None
+                    try:
+                        await send_to_opponent({"type": "draw_declined"})
+                    except Exception:
+                        pass
             if not session.connections:
                 game_sessions.pop(game_id, None)
