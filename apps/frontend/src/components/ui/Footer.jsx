@@ -1,11 +1,7 @@
 const footerLinks = [
   {
-    title: "About",
-    url: "#",
-  },
-  {
-    title: "Contact",
-    url: "#",
+    title: "Github",
+    url: "https://github.com/SudevOP1/LetsChess2/",
   },
 ];
 
