@@ -32,6 +32,7 @@ const App = () => {
               {/* routes without navbar & footer */}
               <Route    path="/" element={<Layout showNavbar={false} showFooter={false} />}>
                 <Route  path="/find-game"           element={<ProtectedRoute><FindGamePage /></ProtectedRoute>} />
+                <Route  path="/game/vs-bot"         element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
                 <Route  path="/game/:gameId"        element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
               </Route>
 

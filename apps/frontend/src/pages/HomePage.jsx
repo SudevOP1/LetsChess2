@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Swords, Trophy, RefreshCw, ArrowRight, TrendingUp } from "lucide-react";
+import { Swords, Trophy, RefreshCw, ArrowRight, TrendingUp, Bot } from "lucide-react";
 
 import { useAuthContext } from "../context/AuthContext";
 import { useApiContext } from "../context/ApiContext";
@@ -103,6 +103,28 @@ const HomePage = () => {
 
         {/* Right Side: Quick Play & Stats */}
         <div className="lg:flex-2 flex flex-col gap-7 lg:gap-4">
+          {/* Play vs Bot Card */}
+          <div
+            className="overflow-hidden rounded-2xl p-6 flex flex-col justify-between gap-1
+              bg-surface border border-surface-hover"
+          >
+            <div className="flex flex-row gap-3 items-center">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-xl font-bold text-text-strong">Play vs Bot</h3>
+                <p className="text-sm text-text-weak font-medium">Practice instantly against a chess bot.</p>
+              </div>
+            </div>
+            <Link to="/game/vs-bot" className="mt-6">
+              <Button variant="primary" className="w-full py-4 text-base font-bold">
+                <span>Play vs Bot</span>
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
           {/* Play Card */}
           <div
             className="overflow-hidden rounded-2xl p-6 flex flex-col justify-between gap-1
@@ -123,6 +145,9 @@ const HomePage = () => {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
+            <p className="text-xs text-text-weak/50 text-center mt-2">
+              You'll be matched with real players — this may take some time.
+            </p>
           </div>
 
           {/* Stats Card */}

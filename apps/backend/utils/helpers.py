@@ -2,13 +2,51 @@ from chess import Board  # pyrefly: ignore [missing-import]
 
 from bson import ObjectId
 from utils.db import db
+from bots.registry import get_bot
 
 
 async def get_game_metadata(game: dict) -> dict:
-    player1_id = str(game.get("player1_id"))
-    player2_id = str(game.get("player2_id"))
+    if game.get("vs_bot"):
+        bot = get_bot(game.get("bot_id"))
+        bot_username = bot.get("name") if bot else "Bot"
+        bot_elo = bot.get("elo") if bot else None
 
+        # bot plays whichever color has no player_id set
+        bot_is_white = game.get("player1_id") is None
+        human_id = str(
+            game.get("player2_id") if bot_is_white else game.get("player1_id")
+        )
+        human = await db.users.find_one({"_id": ObjectId(human_id)})
+        human_username = human.get("username") if human else None
+        human_elo = human.get("elo") if human else None
+
+        if bot_is_white:
+            return {
+                "player1_id": game.get("bot_id"),
+                "player2_id": human_id,
+                "player1_username": bot_username,
+                "player2_username": human_username,
+                "player1_elo": bot_elo,
+                "player2_elo": human_elo,
+                "started_at": game.get("created_at").isoformat(),
+                "vs_bot": True,
+            }
+
+        return {
+            "player1_id": human_id,
+            "player2_id": game.get("bot_id"),
+            "player1_username": human_username,
+            "player2_username": bot_username,
+            "player1_elo": human_elo,
+            "player2_elo": bot_elo,
+            "started_at": game.get("created_at").isoformat(),
+            "vs_bot": True,
+        }
+
+    player1_id = str(game.get("player1_id"))
     player1 = await db.users.find_one({"_id": ObjectId(player1_id)})
+
+    player2_id = str(game.get("player2_id"))
     player2 = await db.users.find_one({"_id": ObjectId(player2_id)})
 
     return {

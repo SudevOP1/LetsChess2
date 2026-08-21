@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { Ban, Flag, ArrowLeft, ArrowRight, Search, X, Crown } from "lucide-react";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import { Ban, Flag, ArrowLeft, ArrowRight, Search, X, Crown, Bot } from "lucide-react";
 import { Chess } from "chess.js";
 
 import { useAuthContext } from "../context/AuthContext";
 import { useToastContext } from "../context/ToastContext";
+import { useApiContext } from "../context/ApiContext";
 import Logger from "../services/logger.js";
 import Button from "../components/ui/Button";
 import Board from "../components/Board";
@@ -16,10 +17,53 @@ import check from "../assets/sounds/check.mp3";
 import castle from "../assets/sounds/castle.mp3";
 import gameover from "../assets/sounds/gameover.mp3";
 
+const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 const GamePage = () => {
   const { gameId } = useParams();
-  const { username, accessToken, wsUrl, logoutUser } = useAuthContext();
+  // /game/vs-bot has no :gameId - it's the "pick a color" setup screen for a bot game
+  const isBotSetup = gameId === undefined;
+
+  const { username, accessToken, wsUrl, backendUrl, logoutUser } = useAuthContext();
   const { addToast } = useToastContext();
+  const { fetchApi } = useApiContext();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // bot setup screen state
+  const [botColor, setBotColor] = useState("w");
+  const [creatingBotGame, setCreatingBotGame] = useState(false);
+  const setupLegalMoves = new Chess().moves({ verbose: true }).map((m) => `${m.from}${m.to}${m.promotion || ""}`);
+  // move made on the setup board before the game exists - sent once the real game connects
+  const pendingMoveRef = useRef(location.state?.pendingMove ?? null);
+
+  const createBotGame = async (color) => {
+    const [success, data] = await fetchApi(`${backendUrl}/game/vs-bot`, "POST", { color }, setCreatingBotGame);
+    if (!success) {
+      Logger.error("Failed to create bot game", data);
+      addToast("Something went wrong", "red", 5);
+      return null;
+    }
+    return data.game_id;
+  };
+
+  // white's first move is what actually creates the game
+  const handleSetupMove = async (uciMove) => {
+    const newGameId = await createBotGame("white");
+    if (!newGameId) {
+      return;
+    }
+    navigate(`/game/${newGameId}`, { replace: true, state: { pendingMove: uciMove } });
+  };
+
+  // playing black means the bot moves first, so there's no move to defer - just create the game
+  const handlePlayAsBlack = async () => {
+    const newGameId = await createBotGame("black");
+    if (!newGameId) {
+      return;
+    }
+    navigate(`/game/${newGameId}`, { replace: true });
+  };
 
   const [oppTime, setOppTime] = useState("10:00");
   const [selfTime, setSelfTime] = useState("10:00");
@@ -32,7 +76,7 @@ const GamePage = () => {
 
   // gamedata
   const [gameData, setGameData] = useState(null);
-  const [fenString, setFenString] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+  const [fenString, setFenString] = useState(STARTING_FEN);
   const [sanMoves, setSanMoves] = useState([]);
   const [uciMoves, setUciMoves] = useState([]);
   const [legalMoves, setLegalMoves] = useState([]);
@@ -59,11 +103,10 @@ const GamePage = () => {
 
   const debug = true;
   let wsRef = useRef(null);
-  const navigate = useNavigate();
 
   // ws
   useEffect(() => {
-    if (!accessToken || gameData?.is_game_over) {
+    if (!accessToken || isBotSetup || gameData?.is_game_over) {
       return;
     }
 
@@ -311,6 +354,13 @@ const GamePage = () => {
           setShowGameOverOverlay(true);
         }
 
+        // send the move made on the bot setup board, now that the game exists
+        if (pendingMoveRef.current) {
+          const pendingMove = pendingMoveRef.current;
+          pendingMoveRef.current = null;
+          makeMove(pendingMove);
+        }
+
         setCurrentMoveIndex(-1);
         break;
       }
@@ -400,11 +450,19 @@ const GamePage = () => {
       }
 
       case "draw_declined": {
-        setDrawOfferState(null);
+        const opponentLabel = gameMetadataRef.current?.vs_bot ? "Bot" : "Opponent";
+        setDrawOfferState((prev) => {
+          // only toast if it was my offer that got turned down, not my own cancel/decline
+          if (prev === "sent") {
+            addToast(`${opponentLabel} declined the draw offer`, "red", 4);
+          }
+          return null;
+        });
         break;
       }
 
       case "draw": {
+        const opponentLabel = gameMetadataRef.current?.vs_bot ? "Bot" : "Opponent";
         setGameData(msg);
         setFenString(msg?.fen);
         setSanMoves(msg?.san_moves);
@@ -415,7 +473,12 @@ const GamePage = () => {
         setTurn(msg?.turn);
         setResult(msg?.result);
         setWinner(msg?.winner);
-        setDrawOfferState(null);
+        setDrawOfferState((prev) => {
+          if (prev === "sent") {
+            addToast(`${opponentLabel} accepted the draw offer`, "green", 4);
+          }
+          return null;
+        });
 
         gameover_sound.currentTime = 0;
         gameover_sound.play().catch((e) => {
@@ -557,6 +620,77 @@ const GamePage = () => {
       return fenString;
     }
   };
+
+  // bot setup screen - pick a color, no game exists yet
+  if (isBotSetup) {
+    return (
+      <div className="flex flex-col lg:flex-row gap-4 w-screen h-full min-h-screen p-3 md:max-w-4xl lg:max-w-6xl mx-auto">
+        {/* board */}
+        <div className="flex-1 flex flex-col gap-4 h-full">
+          <div className="flex-none p-3 rounded-md bg-surface border border-surface-hover flex items-center justify-center lg:h-[calc(100vh-24px)]">
+            <Board
+              selfColor={botColor}
+              inverted={botColor === "b"}
+              fenString={STARTING_FEN}
+              uciMoves={[]}
+              legalMoves={botColor === "w" ? setupLegalMoves : []}
+              isCheck={false}
+              turn="w"
+              makeMove={handleSetupMove}
+              isGameOver={false}
+              winner={null}
+              isViewingHistory={false}
+              className="h-full max-h-[70vh] md:max-h-none aspect-square"
+            />
+          </div>
+        </div>
+
+        {/* right panel */}
+        <div className="flex flex-col min-w-60 w-full lg:h-[calc(100vh-24px)] bg-surface border border-surface-hover rounded-md p-6 gap-6">
+          <div className="flex flex-row gap-3 items-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Bot className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-text-strong">Play vs Bot</h2>
+              <p className="text-sm text-text-weak">Choose your color to begin.</p>
+            </div>
+          </div>
+
+          {/* color toggle */}
+          <div className="flex flex-row gap-2 p-1 bg-background/40 rounded-xl border border-surface-hover">
+            <Button
+              variant={botColor === "w" ? "primary" : "ghost"}
+              onClick={() => setBotColor("w")}
+              className="flex-1"
+            >
+              Play as White
+            </Button>
+            <Button
+              variant={botColor === "b" ? "primary" : "ghost"}
+              onClick={() => setBotColor("b")}
+              className="flex-1"
+            >
+              Play as Black
+            </Button>
+          </div>
+
+          {botColor === "w" ? (
+            <p className="text-sm text-text-weak">Make a move on the board to start the game.</p>
+          ) : (
+            <Button
+              isLoading={creatingBotGame}
+              variant="primary"
+              onClick={() => handlePlayAsBlack()}
+              className="w-full py-4 text-base font-bold"
+            >
+              Play as Black
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const displayFen = getHistoryFen();
   const displayUciMoves = currentMoveIndex === -1 ? uciMoves : uciMoves.slice(0, currentMoveIndex);

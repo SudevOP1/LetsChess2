@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Body
 from bson import ObjectId
 from chess import Board, Move  # pyrefly: ignore [missing-import]
 import traceback
@@ -10,6 +10,7 @@ from utils.auth import authenticate_websocket_user, get_current_user
 from utils.db import db
 from utils.helpers import get_game_data, get_game_metadata, get_new_elo
 from utils import debug
+from bots.registry import get_bot
 
 game_router = APIRouter()
 
@@ -53,9 +54,12 @@ async def recent_games(auth_result=Depends(get_current_user)):
                 }
             )
 
-        # Calculate statistics
+        # Calculate statistics (bot games don't count towards elo-relevant stats)
         total_games = await db.games.count_documents(
-            {"$or": [{"player1_id": user_oid}, {"player2_id": user_oid}]}
+            {
+                "$or": [{"player1_id": user_oid}, {"player2_id": user_oid}],
+                "vs_bot": {"$ne": True},
+            }
         )
 
         wins = await db.games.count_documents(
@@ -63,7 +67,8 @@ async def recent_games(auth_result=Depends(get_current_user)):
                 "$or": [
                     {"player1_id": user_oid, "winner": "w"},
                     {"player2_id": user_oid, "winner": "b"},
-                ]
+                ],
+                "vs_bot": {"$ne": True},
             }
         )
 
@@ -72,7 +77,8 @@ async def recent_games(auth_result=Depends(get_current_user)):
                 "$or": [
                     {"player1_id": user_oid, "winner": "b"},
                     {"player2_id": user_oid, "winner": "w"},
-                ]
+                ],
+                "vs_bot": {"$ne": True},
             }
         )
 
@@ -81,6 +87,7 @@ async def recent_games(auth_result=Depends(get_current_user)):
                 "$or": [{"player1_id": user_oid}, {"player2_id": user_oid}],
                 "status": "gameover",
                 "winner": None,
+                "vs_bot": {"$ne": True},
             }
         )
 
@@ -123,9 +130,59 @@ class GameSession:
         self.connections: dict[str, WebSocket] = {}
         # temp var - id of player who currently has open draw offer, cleared once resolved
         self.draw_offered_by: Optional[str] = None
+        # per-game transposition table, only used for vs_bot games - keeps
+        # concurrent bot games from clearing/overwriting each other's cache
+        self.bot_tt: dict = {}
 
 
 game_sessions: dict[str, GameSession] = {}
+
+
+@game_router.post("/vs-bot")
+async def create_bot_game(
+    color: str = Body("white"), auth_result=Depends(get_current_user)
+):
+    try:
+        auth_success, current_user = auth_result
+        if not auth_success:
+            return {"success": False, "error": current_user, "status_code": 401}
+
+        if color not in ("white", "black"):
+            return {"success": False, "error": "invalid color", "status_code": 400}
+
+        bot_id = "bot1"
+        bot = get_bot(bot_id)
+        if not bot:
+            return {"success": False, "error": "bot not found", "status_code": 404}
+
+        human_oid = ObjectId(current_user.get("id"))
+        player1_id = human_oid if color == "white" else None
+        player2_id = None if color == "white" else human_oid
+
+        game = await db.games.insert_one(
+            {
+                "created_at": datetime.utcnow(),
+                "player1_id": player1_id,
+                "player2_id": player2_id,
+                "vs_bot": True,
+                "bot_id": bot_id,
+                "status": "active",
+                "moves": "",
+            }
+        )
+
+        return {"success": True, "game_id": str(game.inserted_id)}
+    except Exception as e:
+        debug.error(
+            "500 POST /game/vs-bot",
+            traceback.format_exc(),
+            api_route=True,
+        )
+        return {
+            "success": False,
+            "error": f"something went wrong: {str(e)}",
+            "status_code": 500,
+        }
 
 
 @game_router.websocket("/find")
@@ -458,6 +515,18 @@ async def play_game(websocket: WebSocket, game_id: str):
             await send_to_player({"type": "error", "error": "illegal move"})
             return
 
+        await apply_move(move)
+
+        # if playing a bot and the game is still active, let the bot respond
+        if game.get("vs_bot") and game.get("status") == "active":
+            await make_bot_move()
+
+    async def apply_move(move: Move) -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
+
         # make move
         san_move = board.san(move)
         board.push(move)
@@ -474,7 +543,7 @@ async def play_game(websocket: WebSocket, game_id: str):
         await broadcast(
             {
                 "type": "move",
-                "move": uci_move,
+                "move": move.uci(),
                 **get_game_data(board, game),
             }
         )
@@ -483,6 +552,24 @@ async def play_game(websocket: WebSocket, game_id: str):
         if board.is_game_over():
             await handle_game_over()
             return
+
+    async def make_bot_move() -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
+
+        bot = get_bot(game.get("bot_id"))
+        if not bot:
+            return
+
+        # run the (cpu-bound) search off the event loop
+        bot_move_uci = await asyncio.to_thread(
+            bot["predict"], board.copy(), bot.get("depth", 4), session.bot_tt
+        )
+        move = Move.from_uci(bot_move_uci)
+
+        await apply_move(move)
 
     async def handle_elo_update() -> tuple[int, int]:
 
@@ -493,6 +580,10 @@ async def play_game(websocket: WebSocket, game_id: str):
         player2_elo = game_metadata.get("player2_elo")
         result = game.get("result")
         winner = game.get("winner", None)
+
+        # bot games don't affect elo - the bot isn't a real, ratable user
+        if game.get("vs_bot"):
+            return player1_elo, player2_elo
 
         elo_w, elo_b = get_new_elo(
             elo_w=player1_elo,
@@ -551,7 +642,35 @@ async def play_game(websocket: WebSocket, game_id: str):
 
         await send_to_player({"type": "draw_offer_sent"})
         await send_to_opponent({"type": "draw_offered"})
+
+        # bots can't leave a draw offer hanging - have it answer right away
+        if session.game.get("vs_bot"):
+            await handle_bot_draw_response()
+
         return
+
+    async def handle_bot_draw_response() -> None:
+        if session is None or session.draw_offered_by is None:
+            return
+        game = session.game
+        board = session.board
+
+        bot = get_bot(game.get("bot_id"))
+        if not bot or "evaluate" not in bot:
+            await handle_decline_draw()
+            return
+
+        # eval is from the perspective of whoever is to move - flip it to the bot's perspective
+        bot_is_white = game.get("player1_id") is None
+        bot_to_move = (board.turn and bot_is_white) or (not board.turn and not bot_is_white)
+        raw_eval = bot["evaluate"](board)
+        bot_eval = raw_eval if bot_to_move else -raw_eval
+
+        # accept unless the bot thinks it's clearly winning (> ~1 pawn ahead)
+        if bot_eval <= 100:
+            await finalize_draw_agreement()
+        else:
+            await handle_decline_draw()
 
     async def handle_decline_draw() -> None:
         if session is None:
@@ -569,8 +688,6 @@ async def play_game(websocket: WebSocket, game_id: str):
     async def handle_accept_draw() -> None:
         if session is None:
             return
-        game = session.game
-        board = session.board
 
         if (
             session.draw_offered_by is None
@@ -578,6 +695,15 @@ async def play_game(websocket: WebSocket, game_id: str):
         ):
             await send_to_player({"type": "error", "error": "no draw offer to accept"})
             return
+
+        await finalize_draw_agreement()
+        return
+
+    async def finalize_draw_agreement() -> None:
+        if session is None:
+            return
+        game = session.game
+        board = session.board
 
         # clear temp offer var
         session.draw_offered_by = None
@@ -661,14 +787,22 @@ async def play_game(websocket: WebSocket, game_id: str):
             return
 
         # get opponent
-        opponent_user_id = str(
-            game.get("player1_id")
-            if current_user.get("id") == str(game.get("player2_id"))
-            else game.get("player2_id")
-        )
-        opponent_user = await db.users.find_one({"_id": ObjectId(opponent_user_id)})
-        opponent_user["id"] = opponent_user_id
-        del opponent_user["_id"]
+        if game.get("vs_bot"):
+            bot = get_bot(game.get("bot_id"))
+            opponent_user = {
+                "id": game.get("bot_id"),
+                "username": bot.get("name") if bot else "Bot",
+                "elo": bot.get("elo") if bot else None,
+            }
+        else:
+            opponent_user_id = str(
+                game.get("player1_id")
+                if current_user.get("id") == str(game.get("player2_id"))
+                else game.get("player2_id")
+            )
+            opponent_user = await db.users.find_one({"_id": ObjectId(opponent_user_id)})
+            opponent_user["id"] = opponent_user_id
+            del opponent_user["_id"]
 
         # send metadata and data
         game_metadata = await get_game_metadata(game)
@@ -681,7 +815,18 @@ async def play_game(websocket: WebSocket, game_id: str):
             return
 
         # add user to active connections
+        is_first_connection = len(session.connections) == 0
         session.connections[current_user.get("id")] = websocket
+
+        # if the bot plays white, it needs to make the opening move
+        if (
+            is_first_connection
+            and game.get("vs_bot")
+            and game.get("status") == "active"
+            and game.get("player1_id") is None
+            and board.turn
+        ):
+            await make_bot_move()
 
         while True:
             msg = await incoming_messages.get()

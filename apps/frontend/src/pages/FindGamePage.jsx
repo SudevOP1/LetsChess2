@@ -215,6 +215,9 @@ const GamePage = () => {
                 <div className="space-y-1">
                   <h3 className="text-xl font-bold text-text-strong">Ready to Play?</h3>
                   <p className="text-sm text-text-weak max-w-xs mx-auto">Queue up to find an opponent</p>
+                  <p className="text-xs text-text-weak/50 max-w-xs mx-auto pt-1">
+                    You'll be matched with real players — this may take some time.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -231,6 +234,9 @@ const GamePage = () => {
                 <div className="space-y-1">
                   <h3 className="text-xl font-bold text-text-strong">Searching...</h3>
                   <p className="text-sm text-text-weak max-w-xs mx-auto">Looking for a matching opponent</p>
+                  <p className="text-xs text-text-weak/50 max-w-xs mx-auto pt-1">
+                    You're being matched with a real player — this may take some time.
+                  </p>
                 </div>
               </div>
             )}
